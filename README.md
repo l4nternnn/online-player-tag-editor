@@ -29,7 +29,7 @@
 ### 客户端（可选）
 
 - **只用 `/playertags` 命令和 GUI**：客户端不需要安装 mod
-- **想要 ESC 菜单中显示"Tag 管理"按钮**：客户端也需要安装 mod，放入 `mods/` 目录
+- **想要快捷键一键打开 Tag 编辑器**：客户端也需要安装 mod，放入 `mods/` 目录。安装后按 **`=` 键**（可在按键设置中修改）即可快速打开
 
 ### 权限说明
 
@@ -52,6 +52,12 @@
 命令支持 Tab 补全：
 - `<player>` 补全在线玩家名
 - `<tag>` 补全预设 tags 列表
+
+## 快捷键（客户端安装后可用）
+
+| 默认键位 | 功能 | 说明 |
+|----------|------|------|
+| `=` | 打开 Tag 编辑器 | 等价于执行 `/playertags`，可在「按键设置 → Online Player Tag Editor」中修改 |
 
 ## 权限
 
@@ -87,7 +93,8 @@
     "WitchSlayer", "Reversal", "Floating", "Power", "BrainWash",
     "Imitation", "Heal", "VisionControl", "Clairvoyance", "FireControl",
     "LiquidControl", "Swap", "Vision", "Sandevistan", "Perception",
-    "Intervention"
+    "Intervention",
+    "GrandWitch", "muhou", "player", "master", "guard"
   ],
   "tagDisplayNames": {
     "ema": "樱羽艾玛",
@@ -118,7 +125,12 @@
     "Vision": "幻视",
     "Sandevistan": "过载",
     "Perception": "感知",
-    "Intervention": "介入过去"
+    "Intervention": "介入过去",
+    "GrandWitch": "大魔女",
+    "muhou": "幕后",
+    "player": "玩家",
+    "master": "典狱长",
+    "guard": "看守"
   },
   "dangerousConfirm": true
 }
@@ -127,8 +139,8 @@
 配置说明：
 - `permissionLevel`: 所需的最低 OP 等级，默认 2
 - `guiTitle`: GUI 标题文字
-- `enableEscButton`: 是否在客户端 ESC 菜单显示按钮（客户端读取本地配置）
-- `escButtonText`: ESC 菜单按钮文字
+- `enableEscButton`: 预留字段（当前版本使用按键绑定，默认 `=`）
+- `escButtonText`: 预留字段（当前版本使用按键绑定）
 - `presetTags`: GUI 中显示的预设 tags 列表
 - `tagDisplayNames`: tag 的显示名映射，只影响 GUI 显示，**真实写入的 tag 仍是原始 key**
 - `dangerousConfirm`: 危险操作确认开关（预留，当前版本未使用）
@@ -142,7 +154,7 @@
 5. 预设 tags 以染色物品显示：
    - **绿色染料** = 玩家已有此 tag，点击移除
    - **灰色染料** = 玩家没有此 tag，点击添加
-6. 点击 `script_1` → 玩家获得原版 tag `script_1`
+6. 点击 `ema` → 玩家获得原版 tag `ema`
 7. 在游戏内执行 `/tag <玩家名> list` 可验证
 
 ## 验证方式
@@ -188,7 +200,7 @@
 - 不通过执行 `/tag` 字符串命令来实现 tag 操作
 - GUI 使用原版 `ScreenHandler` + 箱子 GUI（`ScreenHandlerType.GENERIC_9X4` / `GENERIC_9X6`）
 - 客户端无需安装 mod 即可使用 GUI
-- ESC 菜单按钮使用 Mixin + `@Shadow` 注入 `GameMenuScreen.init()`
+- 快捷键使用 Fabric Key Binding API，默认绑定 `=` 键
 
 ## Tag 合法性校验
 
@@ -203,11 +215,7 @@
 
 1. **配置重载后需手动重开 GUI**：执行 `/playertags reload` 后，已打开的 GUI 不会自动刷新。需手动关闭并重新打开 GUI 才能看到新配置。
 
-2. **ESC 按钮的 enableEscButton 配置**：客户端读取本地配置文件判断是否显示按钮。如果客户端和服务端配置文件不同步，可能出现不一致。
-
-3. **玩家头颅皮肤**：当前版本玩家列表使用预览类型的 PLAYER_HEAD，不加载实际皮肤纹理。
-
-4. **不依赖第三方 GUI 库**：完全使用 Minecraft 原版 ScreenHandler API 实现。
+2. **不依赖第三方 GUI 库**：完全使用 Minecraft 原版 ScreenHandler API 实现。
 
 ## 编译
 
@@ -245,12 +253,14 @@ online-player-tag-editor/
 │   │   │       └── TextUtil.java                   # 文本工具
 │   │   └── resources/
 │   │       ├── fabric.mod.json
-│   │       └── online_player_tag_editor.mixins.json
+│   │       ├── online_player_tag_editor.mixins.json
+│   │       └── assets/online_player_tag_editor/lang/
+│   │           ├── zh_cn.json                      # 中文翻译
+│   │           └── en_us.json                      # 英文翻译
 │   └── client/
 │       ├── java/com/lantern/onlineplayertageditor/client/
-│       │   ├── OnlinePlayerTagEditorClient.java    # 客户端入口
-│       │   └── mixin/
-│       │       └── GameMenuScreenMixin.java        # ESC 菜单按钮 Mixin
+│       │   ├── OnlinePlayerTagEditorClient.java    # 客户端入口 + 按键绑定
+│       │   └── mixin/                              # 预留 Mixin 包（当前空）
 │       └── resources/
 │           └── online_player_tag_editor.client.mixins.json
 └── README.md
@@ -264,7 +274,7 @@ online-player-tag-editor/
 4. 服务端必须安装，客户端可选安装
 5. 管理对象仅为当前在线玩家
 6. Tag 数据存储在 Minecraft 原版 Entity Tags 中，不会丢失
-7. 如果客户端未安装 mod 但服务端安装了，ESC 按钮不会出现，但 `/playertags` 命令和 GUI 正常可用
+7. 客户端安装 mod 后，默认按 `=` 键快速打开 Tag 编辑器（可在「按键设置」中修改）
 
 ## License
 
