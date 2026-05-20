@@ -1,0 +1,36 @@
+{
+    "schemaVersion": 1,
+    "id": "online_player_tag_editor",
+    "version": "${version}",
+    "name": "Online Player Tag Editor",
+    "description": "在线玩家 Tag 管理工具 - 通过 GUI 快速配置原版 Entity Tags。提供 /playertags 命令和游戏内 GUI，支持一键添加/移除/切换玩家的原版 tags。",
+    "authors": [
+        "Lantern"
+    ],
+    "contact": {
+        "sources": "https://github.com/Lantern/online-player-tag-editor"
+    },
+    "license": "MIT",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "com.lantern.onlineplayertageditor.OnlinePlayerTagEditor"
+        ],
+        "client": [
+            "com.lantern.onlineplayertageditor.client.OnlinePlayerTagEditorClient"
+        ]
+    },
+    "mixins": [
+        "online_player_tag_editor.mixins.json",
+        {
+            "config": "online_player_tag_editor.client.mixins.json",
+            "environment": "client"
+        }
+    ],
+    "depends": {
+        "fabricloader": ">=0.19.2",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*"
+    }
+}
