@@ -81,22 +81,24 @@
   "enableEscButton": true,
   "escButtonText": "Tag 管理",
   "presetTags": [
-    "lobby",
-    "script_1",
-    "script_2",
-    "host",
-    "spectator",
-    "dead",
-    "alive"
+    "ema", "cero", "nnk", "mago", "milya",
+    "sherry", "yalisa", "noa", "anan", "yuki",
+    "mll", "coco", "hanna"
   ],
   "tagDisplayNames": {
-    "lobby": "大厅",
-    "script_1": "剧本杀一服",
-    "script_2": "剧本杀二服",
-    "host": "主持人",
-    "spectator": "旁观者",
-    "dead": "死亡",
-    "alive": "存活"
+    "ema": "樱羽艾玛",
+    "cero": "二阶堂希罗",
+    "nnk": "黑部奈叶香",
+    "mago": "宝生玛格",
+    "milya": "佐伯米莉亚",
+    "sherry": "橘雪莉",
+    "yalisa": "紫藤亚里沙",
+    "noa": "城崎诺亚",
+    "anan": "夏目安安",
+    "yuki": "月代雪",
+    "mll": "冰上梅露露",
+    "coco": "泽渡可可",
+    "hanna": "远野汉娜"
   },
   "dangerousConfirm": true
 }

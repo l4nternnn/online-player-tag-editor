@@ -18,17 +18,24 @@ public class ModConfig {
         ModConfig config = new ModConfig();
 
         config.presetTags.addAll(List.of(
-                "lobby", "script_1", "script_2",
-                "host", "spectator", "dead", "alive"
+                "ema", "cero", "nnk", "mago", "milya",
+                "sherry", "yalisa", "noa", "anan", "yuki",
+                "mll", "coco", "hanna"
         ));
 
-        config.tagDisplayNames.put("lobby", "大厅");
-        config.tagDisplayNames.put("script_1", "剧本杀一服");
-        config.tagDisplayNames.put("script_2", "剧本杀二服");
-        config.tagDisplayNames.put("host", "主持人");
-        config.tagDisplayNames.put("spectator", "旁观者");
-        config.tagDisplayNames.put("dead", "死亡");
-        config.tagDisplayNames.put("alive", "存活");
+        config.tagDisplayNames.put("ema", "樱羽艾玛");
+        config.tagDisplayNames.put("cero", "二阶堂希罗");
+        config.tagDisplayNames.put("nnk", "黑部奈叶香");
+        config.tagDisplayNames.put("mago", "宝生玛格");
+        config.tagDisplayNames.put("milya", "佐伯米莉亚");
+        config.tagDisplayNames.put("sherry", "橘雪莉");
+        config.tagDisplayNames.put("yalisa", "紫藤亚里沙");
+        config.tagDisplayNames.put("noa", "城崎诺亚");
+        config.tagDisplayNames.put("anan", "夏目安安");
+        config.tagDisplayNames.put("yuki", "月代雪");
+        config.tagDisplayNames.put("mll", "冰上梅露露");
+        config.tagDisplayNames.put("coco", "泽渡可可");
+        config.tagDisplayNames.put("hanna", "远野汉娜");
 
         return config;
     }
