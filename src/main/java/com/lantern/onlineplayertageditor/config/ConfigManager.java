@@ -31,6 +31,26 @@ public class ConfigManager {
                     OnlinePlayerTagEditor.LOGGER.warn("Config file was empty or invalid, using defaults");
                     config = ModConfig.createDefault();
                     save();
+                    return;
+                }
+                // Merge any new defaults not present in the saved config
+                ModConfig defaults = ModConfig.createDefault();
+                boolean changed = false;
+                for (String tag : defaults.presetTags) {
+                    if (!config.presetTags.contains(tag)) {
+                        config.presetTags.add(tag);
+                        changed = true;
+                    }
+                }
+                for (var entry : defaults.tagDisplayNames.entrySet()) {
+                    if (!config.tagDisplayNames.containsKey(entry.getKey())) {
+                        config.tagDisplayNames.put(entry.getKey(), entry.getValue());
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    save();
+                    OnlinePlayerTagEditor.LOGGER.info("Config merged with new defaults");
                 }
                 OnlinePlayerTagEditor.LOGGER.info("Config loaded from {}", CONFIG_PATH);
             } catch (Exception e) {
