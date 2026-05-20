@@ -32,6 +32,11 @@ public class ModConfig {
                 "Intervention"
         ));
 
+        // 身份 Tags
+        config.presetTags.addAll(List.of(
+                "GrandWitch", "muhou", "player", "master", "guard"
+        ));
+
         // 角色显示名
         config.tagDisplayNames.put("ema", "樱羽艾玛");
         config.tagDisplayNames.put("cero", "二阶堂希罗");
@@ -64,6 +69,13 @@ public class ModConfig {
         config.tagDisplayNames.put("Sandevistan", "过载");
         config.tagDisplayNames.put("Perception", "感知");
         config.tagDisplayNames.put("Intervention", "介入过去");
+
+        // 身份显示名
+        config.tagDisplayNames.put("GrandWitch", "大魔女");
+        config.tagDisplayNames.put("muhou", "幕后");
+        config.tagDisplayNames.put("player", "玩家");
+        config.tagDisplayNames.put("master", "典狱长");
+        config.tagDisplayNames.put("guard", "看守");
 
         return config;
     }
