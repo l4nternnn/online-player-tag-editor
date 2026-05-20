@@ -17,12 +17,22 @@ public class ModConfig {
     public static ModConfig createDefault() {
         ModConfig config = new ModConfig();
 
+        // 角色 Tags
         config.presetTags.addAll(List.of(
                 "ema", "cero", "nnk", "mago", "milya",
                 "sherry", "yalisa", "noa", "anan", "yuki",
                 "mll", "coco", "hanna"
         ));
 
+        // 魔法 Tags
+        config.presetTags.addAll(List.of(
+                "WitchSlayer", "Reversal", "Floating", "Power", "BrainWash",
+                "Imitation", "Heal", "VisionControl", "Clairvoyance", "FireControl",
+                "LiquidControl", "Swap", "Vision", "Sandevistan", "Perception",
+                "Intervention"
+        ));
+
+        // 角色显示名
         config.tagDisplayNames.put("ema", "樱羽艾玛");
         config.tagDisplayNames.put("cero", "二阶堂希罗");
         config.tagDisplayNames.put("nnk", "黑部奈叶香");
@@ -36,6 +46,24 @@ public class ModConfig {
         config.tagDisplayNames.put("mll", "冰上梅露露");
         config.tagDisplayNames.put("coco", "泽渡可可");
         config.tagDisplayNames.put("hanna", "远野汉娜");
+
+        // 魔法显示名
+        config.tagDisplayNames.put("WitchSlayer", "魔杀");
+        config.tagDisplayNames.put("Reversal", "回溯");
+        config.tagDisplayNames.put("Floating", "漂浮");
+        config.tagDisplayNames.put("Power", "怪力");
+        config.tagDisplayNames.put("BrainWash", "洗脑");
+        config.tagDisplayNames.put("Imitation", "模仿");
+        config.tagDisplayNames.put("Heal", "治愈");
+        config.tagDisplayNames.put("VisionControl", "视线诱导");
+        config.tagDisplayNames.put("Clairvoyance", "千里眼");
+        config.tagDisplayNames.put("FireControl", "点火");
+        config.tagDisplayNames.put("LiquidControl", "液体操纵");
+        config.tagDisplayNames.put("Swap", "互换");
+        config.tagDisplayNames.put("Vision", "幻视");
+        config.tagDisplayNames.put("Sandevistan", "过载");
+        config.tagDisplayNames.put("Perception", "感知");
+        config.tagDisplayNames.put("Intervention", "介入过去");
 
         return config;
     }

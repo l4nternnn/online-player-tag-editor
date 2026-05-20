@@ -83,7 +83,11 @@
   "presetTags": [
     "ema", "cero", "nnk", "mago", "milya",
     "sherry", "yalisa", "noa", "anan", "yuki",
-    "mll", "coco", "hanna"
+    "mll", "coco", "hanna",
+    "WitchSlayer", "Reversal", "Floating", "Power", "BrainWash",
+    "Imitation", "Heal", "VisionControl", "Clairvoyance", "FireControl",
+    "LiquidControl", "Swap", "Vision", "Sandevistan", "Perception",
+    "Intervention"
   ],
   "tagDisplayNames": {
     "ema": "樱羽艾玛",
@@ -98,7 +102,23 @@
     "yuki": "月代雪",
     "mll": "冰上梅露露",
     "coco": "泽渡可可",
-    "hanna": "远野汉娜"
+    "hanna": "远野汉娜",
+    "WitchSlayer": "魔杀",
+    "Reversal": "回溯",
+    "Floating": "漂浮",
+    "Power": "怪力",
+    "BrainWash": "洗脑",
+    "Imitation": "模仿",
+    "Heal": "治愈",
+    "VisionControl": "视线诱导",
+    "Clairvoyance": "千里眼",
+    "FireControl": "点火",
+    "LiquidControl": "液体操纵",
+    "Swap": "互换",
+    "Vision": "幻视",
+    "Sandevistan": "过载",
+    "Perception": "感知",
+    "Intervention": "介入过去"
   },
   "dangerousConfirm": true
 }
