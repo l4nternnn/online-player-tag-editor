@@ -5,6 +5,7 @@ import com.lantern.onlineplayertageditor.tag.TagService;
 import com.lantern.onlineplayertageditor.util.PermissionUtil;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
+import net.minecraft.component.type.ProfileComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.SimpleInventory;
@@ -93,6 +94,7 @@ public class PlayerListScreenHandler extends ScreenHandler {
             ItemStack head = new ItemStack(Items.PLAYER_HEAD);
             head.set(DataComponentTypes.CUSTOM_NAME,
                     Text.literal(target.getGameProfile().getName()).formatted(Formatting.GOLD));
+            head.set(DataComponentTypes.PROFILE, new ProfileComponent(target.getGameProfile()));
 
             List<Text> lore = new ArrayList<>();
             int tagCount = TagService.getTagCount(target);
