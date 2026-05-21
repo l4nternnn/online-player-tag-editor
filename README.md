@@ -22,7 +22,7 @@
 
 ### 服务端（必须）
 
-1. 将 `online_player_tag_editor-2.0.0.jar` 放入服务端 `mods/` 目录
+1. 将 `online_player_tag_editor-2.1.0.jar` 放入服务端 `mods/` 目录
 2. 启动服务端，首次运行会自动生成配置文件 `config/online-player-tag-editor.json`
 3. 服务端安装后，管理员可使用 `/playertags` 命令和 GUI
 
@@ -94,7 +94,8 @@
     "Imitation", "Heal", "VisionControl", "Clairvoyance", "FireControl",
     "LiquidControl", "Swap", "Vision", "Sandevistan", "Perception",
     "Intervention",
-    "GrandWitch", "muhou", "player", "master", "guard"
+    "GrandWitch", "muhou", "player", "master", "guard",
+    "MonvhuaFull"
   ],
   "tagDisplayNames": {
     "ema": "樱羽艾玛",
@@ -130,7 +131,8 @@
     "muhou": "幕后",
     "player": "玩家",
     "master": "典狱长",
-    "guard": "看守"
+    "guard": "看守",
+    "MonvhuaFull": "完全魔女化"
   },
   "dangerousConfirm": true
 }
@@ -302,8 +304,8 @@
 ```
 
 编译输出：
-- `build/libs/online_player_tag_editor-2.0.0.jar` — 可安装的 mod 文件
-- `build/libs/online_player_tag_editor-2.0.0-sources.jar` — 源码 jar
+- `build/libs/online_player_tag_editor-2.1.0.jar` — 可安装的 mod 文件
+- `build/libs/online_player_tag_editor-2.1.0-sources.jar` — 源码 jar
 
 ## 项目结构
 

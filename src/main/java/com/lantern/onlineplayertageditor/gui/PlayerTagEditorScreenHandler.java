@@ -34,11 +34,31 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     private static final int SLOT_VIEW_ALL = NAV_ROW + 5;  // 50
     private static final int SLOT_CLEAR = NAV_ROW + 8;     // 53
 
+    // Category detection: character tags, magic tags, identity/other
+    private static final Set<String> CHARACTER_TAGS = Set.of(
+            "ema", "cero", "nnk", "mago", "milya",
+            "sherry", "yalisa", "noa", "anan", "yuki",
+            "mll", "coco", "hanna"
+    );
+    private static final Set<String> MAGIC_TAGS = Set.of(
+            "WitchSlayer", "Reversal", "Floating", "Power", "BrainWash",
+            "Imitation", "Heal", "VisionControl", "Clairvoyance", "FireControl",
+            "LiquidControl", "Swap", "Vision", "Sandevistan", "Perception",
+            "Intervention"
+    );
+
+    private static int getCategory(String tag) {
+        if (CHARACTER_TAGS.contains(tag)) return 0;
+        if (MAGIC_TAGS.contains(tag)) return 1;
+        return 2; // identity & custom
+    }
+
     private final ServerPlayerEntity viewer;
     private final UUID targetUuid;
     private String targetName;
     private final SimpleInventory inventory;
     private int page;
+    private int[] tagSlots = new int[0];
 
     public PlayerTagEditorScreenHandler(int syncId, PlayerInventory playerInventory,
                                         ServerPlayerEntity viewer, ServerPlayerEntity target) {
@@ -93,17 +113,46 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         }
 
         List<String> presetTags = ConfigManager.getConfig().presetTags;
-        int totalPages = Math.max(1, (int) Math.ceil((double) presetTags.size() / TAG_SLOTS));
+
+        // Build category-aware slot mapping: each category starts on a new row
+        int currentRow = 0;
+        int currentCol = 0;
+        int lastCategory = -1;
+        this.tagSlots = new int[presetTags.size()];
+
+        for (int i = 0; i < presetTags.size(); i++) {
+            int category = getCategory(presetTags.get(i));
+
+            if (category != lastCategory && lastCategory != -1) {
+                currentRow++;
+                currentCol = 0;
+            }
+
+            if (currentCol >= 9) {
+                currentRow++;
+                currentCol = 0;
+            }
+
+            tagSlots[i] = currentRow * 9 + currentCol;
+            currentCol++;
+            lastCategory = category;
+        }
+
+        int maxRow = currentRow;
+        int totalPages = Math.max(1, maxRow / (ROWS - 1) + 1);
         if (page >= totalPages) page = totalPages - 1;
         if (page < 0) page = 0;
 
-        int start = page * TAG_SLOTS;
-        int end = Math.min(start + TAG_SLOTS, presetTags.size());
+        int pageStartSlot = page * TAG_SLOTS;
+        int pageEndSlot = pageStartSlot + TAG_SLOTS;
 
         // Preset tag buttons
-        for (int i = start; i < end; i++) {
+        for (int i = 0; i < presetTags.size(); i++) {
+            int globalSlot = tagSlots[i];
+            if (globalSlot < pageStartSlot || globalSlot >= pageEndSlot) continue;
+
             String tag = presetTags.get(i);
-            int slotIdx = i - start;
+            int slotIdx = globalSlot - pageStartSlot;
 
             boolean hasTag = target != null && TagService.hasTag(target, tag);
             String displayName = ConfigManager.getConfig().getDisplayName(tag);
@@ -142,7 +191,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         // Refresh button
         ItemStack refresh = new ItemStack(Items.CLOCK);
         refresh.set(DataComponentTypes.CUSTOM_NAME, Text.literal("刷新").formatted(Formatting.WHITE));
-        if (presetTags.size() > TAG_SLOTS) {
+        if (totalPages > 1) {
             refresh.set(DataComponentTypes.LORE, new LoreComponent(List.of(
                     Text.literal("第 " + (page + 1) + " / " + totalPages + " 页").formatted(Formatting.GRAY)
             )));
@@ -221,11 +270,15 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
 
         // Tag button clicked
         if (slotIndex >= 0 && slotIndex < TAG_SLOTS) {
-            List<String> presetTags = ConfigManager.getConfig().presetTags;
-            int tagIndex = page * TAG_SLOTS + slotIndex;
-            if (tagIndex >= 0 && tagIndex < presetTags.size()) {
-                String tag = presetTags.get(tagIndex);
-                toggleTag(player, tag);
+            int globalSlot = page * TAG_SLOTS + slotIndex;
+            for (int i = 0; i < tagSlots.length; i++) {
+                if (tagSlots[i] == globalSlot) {
+                    List<String> presetTags = ConfigManager.getConfig().presetTags;
+                    if (i < presetTags.size()) {
+                        toggleTag(player, presetTags.get(i));
+                    }
+                    break;
+                }
             }
         }
     }

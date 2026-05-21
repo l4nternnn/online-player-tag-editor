@@ -34,7 +34,8 @@ public class ModConfig {
 
         // 身份 Tags
         config.presetTags.addAll(List.of(
-                "GrandWitch", "muhou", "player", "master", "guard"
+                "GrandWitch", "muhou", "player", "master", "guard",
+                "MonvhuaFull"
         ));
 
         // 角色显示名
@@ -76,6 +77,7 @@ public class ModConfig {
         config.tagDisplayNames.put("player", "玩家");
         config.tagDisplayNames.put("master", "典狱长");
         config.tagDisplayNames.put("guard", "看守");
+        config.tagDisplayNames.put("MonvhuaFull", "完全魔女化");
 
         return config;
     }

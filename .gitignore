@@ -42,6 +42,7 @@ replay_*.log
 # claude code
 
 .claude/
+CLAUDE.md
 
 # feature prompt files
 
