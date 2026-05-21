@@ -1,6 +1,7 @@
 package com.lantern.onlineplayertageditor.command;
 
 import com.lantern.onlineplayertageditor.config.ConfigManager;
+import com.lantern.onlineplayertageditor.gui.PlayerActionMenuScreenHandler;
 import com.lantern.onlineplayertageditor.gui.PlayerListScreenHandler;
 import com.lantern.onlineplayertageditor.gui.PlayerTagEditorScreenHandler;
 import com.lantern.onlineplayertageditor.tag.TagService;
@@ -89,7 +90,7 @@ public class PlayerTagsCommand {
             return 0;
         }
 
-        PlayerTagEditorScreenHandler.open(viewer, target);
+        PlayerActionMenuScreenHandler.open(viewer, target);
         return 1;
     }
 

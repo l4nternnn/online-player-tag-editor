@@ -115,7 +115,7 @@ public class PlayerListScreenHandler extends ScreenHandler {
                 lore.add(Text.literal("  ...还有 " + (tags.size() - 5) + " 个").formatted(Formatting.DARK_GRAY));
             }
             lore.add(Text.literal(""));
-            lore.add(Text.literal("左键点击编辑此玩家的 Tags").formatted(Formatting.YELLOW));
+            lore.add(Text.literal("左键点击管理此玩家").formatted(Formatting.YELLOW));
 
             head.set(DataComponentTypes.LORE, new LoreComponent(lore));
             inventory.setStack(slotIdx, head);
@@ -219,7 +219,7 @@ public class PlayerListScreenHandler extends ScreenHandler {
                 // Defer to next tick to avoid issues closing screen during click handling
                 player.getServer().execute(() -> {
                     player.closeHandledScreen();
-                    PlayerTagEditorScreenHandler.open(player, target);
+                    PlayerActionMenuScreenHandler.open(player, target);
                 });
             }
         }

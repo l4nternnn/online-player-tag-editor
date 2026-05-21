@@ -6,10 +6,10 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/l4nternnn/online-player-tag-editor?label=release)](https://github.com/l4nternnn/online-player-tag-editor/releases)
 
-在线玩家 Tag 管理工具 —— 通过 GUI 快速配置 Minecraft 原版 Entity Tags。
+在线玩家 Tag 管理工具 —— 通过 GUI 快速配置 Minecraft 原版 Entity Tags 和 `monvhua` 计分板分数。
 
 **这不是**聊天前缀 mod、LuckPerms 权限组、scoreboard team、头顶称号、Tab 列表前缀 mod。  
-**本 mod 的核心目标**是管理 Minecraft 原版 `/tag` 系统对应的 Entity Tags。
+**本 mod 的核心目标**是管理 Minecraft 原版 `/tag` 系统对应的 Entity Tags，以及 `monvhua` 计分板分数。
 
 ## 支持版本
 
@@ -42,7 +42,7 @@
 | 命令 | 说明 | 可用方 |
 |------|------|--------|
 | `/playertags` | 打开在线玩家列表 GUI | 仅玩家 |
-| `/playertags <player>` | 直接打开指定玩家的 tag 编辑 GUI | 仅玩家 |
+| `/playertags <player>` | 打开指定玩家的功能选择 GUI | 仅玩家 |
 | `/playertags reload` | 重载配置文件 | 玩家和控制台 |
 | `/playertags list <player>` | 在聊天栏输出指定玩家的所有 tags | 玩家和控制台 |
 | `/playertags add <player> <tag>` | 给指定玩家添加 tag | 玩家和控制台 |
@@ -147,17 +147,29 @@
 
 ## 使用示例
 
+### Tag 管理
+
 1. 管理员输入 `/playertags`
 2. 看到在线玩家列表（玩家头颅 + 当前 tags 数量）
 3. 左键点击某个玩家头像
-4. 进入该玩家的 tag 编辑界面
-5. 预设 tags 以染色物品显示：
+4. 进入"管理玩家"功能选择界面
+5. 选择"Tags 编辑"进入该玩家的 tag 编辑界面
+6. 预设 tags 以染色物品显示：
    - **绿色染料** = 玩家已有此 tag，点击移除
    - **灰色染料** = 玩家没有此 tag，点击添加
-6. 点击 `ema` → 玩家获得原版 tag `ema`
-7. 在游戏内执行 `/tag <玩家名> list` 可验证
+7. 点击 `ema` → 玩家获得原版 tag `ema`
+8. 在游戏内执行 `/tag <玩家名> list` 可验证
+
+### monvhua 计分板管理
+
+1. 在"管理玩家"界面选择"monvhua 计分板编辑"
+2. 进入计分板编辑界面，显示 8 个阈值按钮和当前分数
+3. 点击对应阈值按钮即可设置玩家分数
+4. 效果等价于 `/scoreboard players set <玩家名> monvhua <分数>`
 
 ## 验证方式
+
+### Tag 验证
 
 在游戏内执行：
 ```
@@ -170,6 +182,30 @@
 /playertags list <玩家名>
 ```
 
+### monvhua 计分板验证
+
+在游戏内执行：
+```
+/scoreboard players get <玩家名> monvhua
+```
+
+## GUI 使用流程
+
+```
+/playertags
+→ 在线玩家列表 GUI
+→ 点击某个玩家头像
+→ 玩家功能选择 GUI
+   ├─ Tags 编辑 → 进入玩家 Tag 编辑 GUI
+   └─ 计分板编辑 → 进入 monvhua 计分板编辑 GUI
+```
+
+也可通过命令直接打开：
+```
+/playertags <玩家名>
+→ 玩家功能选择 GUI
+```
+
 ## GUI 功能
 
 ### 主界面（在线玩家列表）
@@ -179,6 +215,13 @@
 - 支持分页（上一页/下一页）
 - 刷新按钮：重新列出在线玩家
 - 关闭按钮
+
+### 玩家功能选择界面
+- 标题显示"管理玩家：<玩家名>"
+- **Tags 编辑**（命名牌）：进入原来的 Tag 编辑界面
+- **monvhua 计分板编辑**（经验瓶）：进入计分板编辑界面
+- **返回玩家列表**（箭头）
+- **关闭**（屏障）
 
 ### 玩家 Tag 编辑界面
 - 标题显示正在编辑的玩家名
@@ -190,6 +233,41 @@
 - 查看全部 tags 按钮（在聊天栏输出）
 - 清除配置内 tags 按钮（仅移除预设列表中的 tags，不删除玩家其他 tags）
 - 支持分页（tags 多于一页时）
+
+### monvhua 计分板编辑界面
+- 标题显示"monvhua：<玩家名>"
+- 显示 8 个固定阈值按钮，使用不同染色材料区分
+- 当前选中的阈值按钮显示绿色边框
+- 信息按钮（纸）显示当前分数和阶段
+- 点击阈值按钮后设置分数并立即刷新
+
+#### monvhua 阈值
+
+| 分数 | 阶段名称 | 物品 |
+|---:|---|---|
+| 0 | 神志清醒 | 黄绿色染料 |
+| 10 | 略染污浊 | 淡蓝色染料 |
+| 25 | 轻度魔女化 | 青色染料 |
+| 45 | 中度魔女化 | 黄色染料 |
+| 60 | 高度魔女化 | 橙色染料 |
+| 70 | 重度魔女化 | 红色染料 |
+| 80 | 准魔女 | 紫色染料 |
+| 90 | 魔女 | 黑色染料 |
+
+设置效果等价于：
+```
+/scoreboard players set <玩家名> monvhua <分数>
+```
+
+#### 注意事项
+
+1. 本 mod **不会自动创建** `monvhua` objective
+2. 如果 `monvhua` 不存在，GUI 会显示警告提示，告知管理员先创建
+3. `monvhua` 需要由服务器管理或数据包预先创建：
+   ```
+   /scoreboard objectives add monvhua dummy
+   ```
+4. 如果当前分数不是预设阈值之一，会显示"非预设值"，不会做任何映射
 
 ## 技术实现
 
@@ -245,7 +323,11 @@ online-player-tag-editor/
 │   │   │   │   └── ConfigManager.java              # 配置读写
 │   │   │   ├── gui/
 │   │   │   │   ├── PlayerListScreenHandler.java    # 在线玩家列表 GUI
-│   │   │   │   └── PlayerTagEditorScreenHandler.java # Tag 编辑 GUI
+│   │   │   │   ├── PlayerActionMenuScreenHandler.java # 玩家功能选择 GUI
+│   │   │   │   ├── PlayerTagEditorScreenHandler.java  # Tag 编辑 GUI
+│   │   │   │   └── PlayerScoreboardEditorScreenHandler.java # monvhua 计分板编辑 GUI
+│   │   │   ├── scoreboard/
+│   │   │   │   └── ScoreboardService.java          # monvhua 计分板服务
 │   │   │   ├── tag/
 │   │   │   │   └── TagService.java                 # Tag 操作 + 校验
 │   │   │   └── util/

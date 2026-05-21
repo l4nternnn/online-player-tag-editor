@@ -42,3 +42,7 @@ replay_*.log
 # claude code
 
 .claude/
+
+# feature prompt files
+
+online_player_tag_editor_monvhua_scoreboard_feature_prompt.md
