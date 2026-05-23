@@ -25,12 +25,12 @@ import java.util.function.Consumer;
 
 public class PlayerScoreboardEditorScreenHandler extends ScreenHandler {
 
-    private static final int ROWS = 5;
-    private static final int CONTAINER_SIZE = ROWS * 9; // 45
+    private static final int ROWS = 3;
+    private static final int CONTAINER_SIZE = ROWS * 9; // 27
 
-    private static final int SLOT_INFO = 31;
-    private static final int SLOT_BACK = 36;
-    private static final int SLOT_CLOSE = 44;
+    private static final int SLOT_INFO = 22;
+    private static final int SLOT_BACK = 21;
+    private static final int SLOT_CLOSE = 23;
 
     private static final int[] THRESHOLD_SLOTS = {10, 11, 12, 13, 14, 15, 16, 17};
     private static final Item[] THRESHOLD_ITEMS = {
@@ -47,7 +47,7 @@ public class PlayerScoreboardEditorScreenHandler extends ScreenHandler {
 
     public PlayerScoreboardEditorScreenHandler(int syncId, PlayerInventory playerInventory,
                                                ServerPlayerEntity viewer, ServerPlayerEntity target) {
-        super(ScreenHandlerType.GENERIC_9X5, syncId);
+        super(ScreenHandlerType.GENERIC_9X3, syncId);
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
         this.targetName = target.getGameProfile().getName();
@@ -57,14 +57,15 @@ public class PlayerScoreboardEditorScreenHandler extends ScreenHandler {
             this.addSlot(new Slot(inventory, i, 8 + (i % 9) * 18, 18 + (i / 9) * 18));
         }
 
+        int inventoryY = 18 + ROWS * 18;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 122 + row * 18));
+                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, inventoryY + row * 18));
             }
         }
 
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 180));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, inventoryY + 58));
         }
 
         updateDisplay();
@@ -106,7 +107,7 @@ public class PlayerScoreboardEditorScreenHandler extends ScreenHandler {
                     Text.literal("请先在服务器或数据包中创建：").formatted(Formatting.GRAY),
                     Text.literal("/scoreboard objectives add monvhua dummy").formatted(Formatting.YELLOW)
             )));
-            inventory.setStack(22, warning);
+            inventory.setStack(SLOT_INFO, warning);
         } else {
             // Threshold buttons
             List<ScoreboardService.MonvhuaLevel> levels = ScoreboardService.LEVELS;

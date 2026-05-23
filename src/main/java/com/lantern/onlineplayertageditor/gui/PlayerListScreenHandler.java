@@ -25,14 +25,26 @@ import java.util.*;
 
 public class PlayerListScreenHandler extends ScreenHandler {
 
-    private static final int ROWS = 4;
-    private static final int CONTAINER_SIZE = ROWS * 9; // 36
-    private static final int PLAYER_SLOTS = (ROWS - 1) * 9; // 27
+    private static int calculateRows(int playerCount) {
+        int tagRows = Math.max(1, Math.min(5, (int) Math.ceil((double) Math.max(1, playerCount) / 9)));
+        return tagRows + 1; // +1 for navigation row
+    }
 
-    private static final int SLOT_PREV = 27;
-    private static final int SLOT_REFRESH = 31;
-    private static final int SLOT_CLOSE = 34;
-    private static final int SLOT_NEXT = 35;
+    private static ScreenHandlerType<?> getType(int rows) {
+        return switch (rows) {
+            case 1 -> ScreenHandlerType.GENERIC_9X1;
+            case 2 -> ScreenHandlerType.GENERIC_9X2;
+            case 3 -> ScreenHandlerType.GENERIC_9X3;
+            case 4 -> ScreenHandlerType.GENERIC_9X4;
+            case 5 -> ScreenHandlerType.GENERIC_9X5;
+            default -> ScreenHandlerType.GENERIC_9X6;
+        };
+    }
+
+    private final int rows;
+    private final int containerSize;
+    private final int playerSlots;
+    private final int navRow;
 
     private final ServerPlayerEntity viewer;
     private final SimpleInventory inventory;
@@ -40,25 +52,29 @@ public class PlayerListScreenHandler extends ScreenHandler {
     private int page;
 
     public PlayerListScreenHandler(int syncId, PlayerInventory playerInventory, ServerPlayerEntity viewer) {
-        super(ScreenHandlerType.GENERIC_9X4, syncId);
+        super(getType(calculateRows(viewer.getServer().getPlayerManager().getPlayerList().size())), syncId);
+        this.rows = calculateRows(viewer.getServer().getPlayerManager().getPlayerList().size());
+        this.containerSize = rows * 9;
+        this.playerSlots = (rows - 1) * 9;
+        this.navRow = playerSlots;
         this.viewer = viewer;
-        this.inventory = new SimpleInventory(CONTAINER_SIZE);
+        this.inventory = new SimpleInventory(containerSize);
 
         // Container slots
-        for (int i = 0; i < CONTAINER_SIZE; i++) {
+        for (int i = 0; i < containerSize; i++) {
             this.addSlot(new Slot(inventory, i, 8 + (i % 9) * 18, 18 + (i / 9) * 18));
         }
 
-        // Player inventory (3 rows)
+        // Player inventory (3 rows) + hotbar
+        int inventoryY = 18 + rows * 18;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 104 + row * 18));
+                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, inventoryY + row * 18));
             }
         }
 
-        // Hotbar
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 162));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, inventoryY + 58));
         }
 
         this.page = 0;
@@ -74,17 +90,17 @@ public class PlayerListScreenHandler extends ScreenHandler {
     }
 
     private void updateDisplay() {
-        for (int i = 0; i < CONTAINER_SIZE; i++) {
+        for (int i = 0; i < containerSize; i++) {
             inventory.setStack(i, ItemStack.EMPTY);
         }
 
         onlinePlayers = getSortedOnlinePlayers();
-        int totalPages = Math.max(1, (int) Math.ceil((double) onlinePlayers.size() / PLAYER_SLOTS));
+        int totalPages = Math.max(1, (int) Math.ceil((double) onlinePlayers.size() / playerSlots));
         if (page >= totalPages) page = totalPages - 1;
         if (page < 0) page = 0;
 
-        int start = page * PLAYER_SLOTS;
-        int end = Math.min(start + PLAYER_SLOTS, onlinePlayers.size());
+        int start = page * playerSlots;
+        int end = Math.min(start + playerSlots, onlinePlayers.size());
 
         // Player heads
         for (int i = start; i < end; i++) {
@@ -128,7 +144,7 @@ public class PlayerListScreenHandler extends ScreenHandler {
             prev.set(DataComponentTypes.LORE, new LoreComponent(List.of(
                     Text.literal("第 " + (page + 1) + " / " + totalPages + " 页").formatted(Formatting.GRAY)
             )));
-            inventory.setStack(SLOT_PREV, prev);
+            inventory.setStack(navRow + 0, prev);
         }
 
         // Next page
@@ -138,18 +154,18 @@ public class PlayerListScreenHandler extends ScreenHandler {
             next.set(DataComponentTypes.LORE, new LoreComponent(List.of(
                     Text.literal("第 " + (page + 1) + " / " + totalPages + " 页").formatted(Formatting.GRAY)
             )));
-            inventory.setStack(SLOT_NEXT, next);
+            inventory.setStack(navRow + 8, next);
         }
 
         // Refresh
         ItemStack refresh = new ItemStack(Items.CLOCK);
         refresh.set(DataComponentTypes.CUSTOM_NAME, Text.literal("刷新列表").formatted(Formatting.WHITE));
-        inventory.setStack(SLOT_REFRESH, refresh);
+        inventory.setStack(navRow + 4, refresh);
 
         // Close
         ItemStack close = new ItemStack(Items.BARRIER);
         close.set(DataComponentTypes.CUSTOM_NAME, Text.literal("关闭").formatted(Formatting.RED));
-        inventory.setStack(SLOT_CLOSE, close);
+        inventory.setStack(navRow + 7, close);
     }
 
     private List<ServerPlayerEntity> getSortedOnlinePlayers() {
@@ -165,7 +181,7 @@ public class PlayerListScreenHandler extends ScreenHandler {
 
     @Override
     public void onSlotClick(int slotIndex, int button, SlotActionType actionType, PlayerEntity player) {
-        if (slotIndex >= 0 && slotIndex < CONTAINER_SIZE) {
+        if (slotIndex >= 0 && slotIndex < containerSize) {
             if (player instanceof ServerPlayerEntity sp) {
                 handleClick(slotIndex, sp);
             }
@@ -186,37 +202,36 @@ public class PlayerListScreenHandler extends ScreenHandler {
         }
 
         onlinePlayers = getSortedOnlinePlayers();
-        int totalPages = Math.max(1, (int) Math.ceil((double) onlinePlayers.size() / PLAYER_SLOTS));
+        int totalPages = Math.max(1, (int) Math.ceil((double) onlinePlayers.size() / playerSlots));
 
-        if (slotIndex == SLOT_CLOSE) {
+        if (slotIndex == navRow + 7) {
             player.closeHandledScreen();
             return;
         }
 
-        if (slotIndex == SLOT_REFRESH) {
+        if (slotIndex == navRow + 4) {
             page = 0;
             updateDisplay();
             return;
         }
 
-        if (slotIndex == SLOT_PREV && page > 0) {
+        if (slotIndex == navRow + 0 && page > 0) {
             page--;
             updateDisplay();
             return;
         }
 
-        if (slotIndex == SLOT_NEXT && page < totalPages - 1) {
+        if (slotIndex == navRow + 8 && page < totalPages - 1) {
             page++;
             updateDisplay();
             return;
         }
 
         // Player head clicked
-        if (slotIndex >= 0 && slotIndex < PLAYER_SLOTS) {
-            int playerIndex = page * PLAYER_SLOTS + slotIndex;
+        if (slotIndex >= 0 && slotIndex < playerSlots) {
+            int playerIndex = page * playerSlots + slotIndex;
             if (playerIndex >= 0 && playerIndex < onlinePlayers.size()) {
                 ServerPlayerEntity target = onlinePlayers.get(playerIndex);
-                // Defer to next tick to avoid issues closing screen during click handling
                 player.getServer().execute(() -> {
                     player.closeHandledScreen();
                     PlayerActionMenuScreenHandler.open(player, target);

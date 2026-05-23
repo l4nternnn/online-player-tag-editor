@@ -23,14 +23,14 @@ import java.util.function.Consumer;
 
 public class TagCategoryMenuScreenHandler extends ScreenHandler {
 
-    private static final int ROWS = 3;
-    private static final int CONTAINER_SIZE = ROWS * 9; // 27
+    private static final int ROWS = 2;
+    private static final int CONTAINER_SIZE = ROWS * 9; // 18
 
-    private static final int SLOT_CHARACTER = 11;
-    private static final int SLOT_MAGIC = 13;
-    private static final int SLOT_IDENTITY = 15;
-    private static final int SLOT_BACK = 21;
-    private static final int SLOT_CLOSE = 23;
+    private static final int SLOT_CHARACTER = 2;
+    private static final int SLOT_MAGIC = 4;
+    private static final int SLOT_IDENTITY = 6;
+    private static final int SLOT_BACK = 12;
+    private static final int SLOT_CLOSE = 14;
 
     private final ServerPlayerEntity viewer;
     private final UUID targetUuid;
@@ -51,14 +51,15 @@ public class TagCategoryMenuScreenHandler extends ScreenHandler {
             this.addSlot(new Slot(inventory, i, 8 + (i % 9) * 18, 18 + (i / 9) * 18));
         }
 
+        int inventoryY = 18 + ROWS * 18;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 86 + row * 18));
+                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, inventoryY + row * 18));
             }
         }
 
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 144));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, inventoryY + 58));
         }
 
         updateDisplay();
