@@ -59,6 +59,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     private final SimpleInventory inventory;
     private int page;
     private int[] tagSlots = new int[0];
+    private boolean navigating = false;
 
     public PlayerTagEditorScreenHandler(int syncId, PlayerInventory playerInventory,
                                         ServerPlayerEntity viewer, ServerPlayerEntity target) {
@@ -222,6 +223,19 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     }
 
     @Override
+    public void onClosed(PlayerEntity player) {
+        super.onClosed(player);
+        if (!navigating && player instanceof ServerPlayerEntity sp) {
+            ServerPlayerEntity target = sp.getServer().getPlayerManager().getPlayer(targetUuid);
+            if (target != null) {
+                sp.getServer().execute(() -> PlayerActionMenuScreenHandler.open(sp, target));
+            } else {
+                sp.getServer().execute(() -> PlayerListScreenHandler.open(sp));
+            }
+        }
+    }
+
+    @Override
     public void onSlotClick(int slotIndex, int button, SlotActionType actionType, PlayerEntity player) {
         if (slotIndex >= 0 && slotIndex < CONTAINER_SIZE) {
             if (player instanceof ServerPlayerEntity sp) {
@@ -245,6 +259,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
 
         // Navigation handlers
         if (slotIndex == SLOT_BACK) {
+            navigating = true;
             player.getServer().execute(() -> {
                 player.closeHandledScreen();
                 PlayerListScreenHandler.open(player);
@@ -287,6 +302,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         ServerPlayerEntity target = getTarget();
         if (target == null) {
             player.sendMessage(Text.literal("目标玩家已离线").formatted(Formatting.RED));
+            navigating = true;
             player.getServer().execute(() -> {
                 player.closeHandledScreen();
                 PlayerListScreenHandler.open(player);
@@ -336,6 +352,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         ServerPlayerEntity target = getTarget();
         if (target == null) {
             player.sendMessage(Text.literal("目标玩家已离线").formatted(Formatting.RED));
+            navigating = true;
             player.getServer().execute(() -> {
                 player.closeHandledScreen();
                 PlayerListScreenHandler.open(player);

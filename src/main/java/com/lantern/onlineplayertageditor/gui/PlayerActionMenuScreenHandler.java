@@ -36,6 +36,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
     private String targetName;
     private final SimpleInventory inventory;
     private final Map<Integer, Consumer<ServerPlayerEntity>> slotActions = new HashMap<>();
+    private boolean navigating = false;
 
     public PlayerActionMenuScreenHandler(int syncId, PlayerInventory playerInventory,
                                          ServerPlayerEntity viewer, ServerPlayerEntity target) {
@@ -127,6 +128,14 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
     }
 
     @Override
+    public void onClosed(PlayerEntity player) {
+        super.onClosed(player);
+        if (!navigating && player instanceof ServerPlayerEntity sp) {
+            sp.getServer().execute(() -> PlayerListScreenHandler.open(sp));
+        }
+    }
+
+    @Override
     public void onSlotClick(int slotIndex, int button, SlotActionType actionType, PlayerEntity player) {
         if (slotIndex >= 0 && slotIndex < CONTAINER_SIZE) {
             if (player instanceof ServerPlayerEntity sp) {
@@ -163,6 +172,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
         ServerPlayerEntity target = getTarget();
         if (target == null) {
             player.sendMessage(Text.literal("目标玩家已离线").formatted(Formatting.RED));
+            navigating = true;
             player.getServer().execute(() -> {
                 player.closeHandledScreen();
                 PlayerListScreenHandler.open(player);
@@ -170,6 +180,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
             return;
         }
 
+        navigating = true;
         player.getServer().execute(() -> {
             player.closeHandledScreen();
             PlayerTagEditorScreenHandler.open(player, target);
@@ -185,6 +196,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
         ServerPlayerEntity target = getTarget();
         if (target == null) {
             player.sendMessage(Text.literal("目标玩家已离线").formatted(Formatting.RED));
+            navigating = true;
             player.getServer().execute(() -> {
                 player.closeHandledScreen();
                 PlayerListScreenHandler.open(player);
@@ -192,6 +204,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
             return;
         }
 
+        navigating = true;
         player.getServer().execute(() -> {
             player.closeHandledScreen();
             PlayerScoreboardEditorScreenHandler.open(player, target);
@@ -199,6 +212,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
     }
 
     private void handleBack(ServerPlayerEntity player) {
+        navigating = true;
         player.getServer().execute(() -> {
             player.closeHandledScreen();
             PlayerListScreenHandler.open(player);
