@@ -26,8 +26,8 @@ import java.util.*;
 public class PlayerListScreenHandler extends ScreenHandler {
 
     private static int calculateRows(int playerCount) {
-        int tagRows = Math.max(1, Math.min(4, (int) Math.ceil((double) Math.max(1, playerCount) / 9)));
-        return tagRows + 2; // top padding + tags + nav
+        int tagRows = Math.max(1, Math.min(3, (int) Math.ceil((double) Math.max(1, playerCount) / 9)));
+        return tagRows + 3; // top pad + tags + gap + nav
     }
 
     private static ScreenHandlerType<?> getType(int rows) {
@@ -55,7 +55,7 @@ public class PlayerListScreenHandler extends ScreenHandler {
         super(getType(calculateRows(viewer.getServer().getPlayerManager().getPlayerList().size())), syncId);
         this.rows = calculateRows(viewer.getServer().getPlayerManager().getPlayerList().size());
         this.containerSize = rows * 9;
-        this.playerSlots = (rows - 2) * 9;
+        this.playerSlots = (rows - 3) * 9;
         this.navRow = (rows - 1) * 9;
         this.viewer = viewer;
         this.inventory = new SimpleInventory(containerSize);

@@ -23,13 +23,13 @@ import java.util.function.Consumer;
 
 public class PlayerActionMenuScreenHandler extends ScreenHandler {
 
-    private static final int ROWS = 3;
+    private static final int ROWS = 4; // top pad + buttons + gap + nav
     private static final int CONTAINER_SIZE = ROWS * 9; // 27
 
     private static final int SLOT_TAGS = 12;
     private static final int SLOT_SCOREBOARD = 14;
-    private static final int SLOT_BACK = 21;
-    private static final int SLOT_CLOSE = 23;
+    private static final int SLOT_BACK = 30;
+    private static final int SLOT_CLOSE = 32;
 
     private final ServerPlayerEntity viewer;
     private final UUID targetUuid;

@@ -50,7 +50,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
             if (getCategory(tag) == categoryFilter) count++;
         }
         int tagRows = Math.max(1, (int) Math.ceil((double) count / 9));
-        return Math.min(6, tagRows + 2);
+        return Math.min(6, tagRows + 3); // top pad + tags + gap + nav
     }
 
     private static ScreenHandlerType<?> getType(int rows) {
@@ -82,7 +82,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         super(getType(calculateRows(categoryFilter)), syncId);
         this.rows = calculateRows(categoryFilter);
         this.containerSize = rows * 9;
-        this.tagSlotCount = (rows - 2) * 9;
+        this.tagSlotCount = (rows - 3) * 9;
         this.navRow = (rows - 1) * 9;
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
@@ -183,7 +183,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         }
 
         int maxRow = currentRow;
-        int totalPages = Math.max(1, maxRow / (rows - 2) + 1);
+        int totalPages = Math.max(1, maxRow / (rows - 3) + 1);
         if (page >= totalPages) page = totalPages - 1;
         if (page < 0) page = 0;
 
