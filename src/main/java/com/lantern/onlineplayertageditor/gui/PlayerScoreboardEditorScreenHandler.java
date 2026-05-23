@@ -25,12 +25,12 @@ import java.util.function.Consumer;
 
 public class PlayerScoreboardEditorScreenHandler extends ScreenHandler {
 
-    private static final int ROWS = 3;
-    private static final int CONTAINER_SIZE = ROWS * 9; // 27
+    private static final int ROWS = 4;
+    private static final int CONTAINER_SIZE = ROWS * 9; // 36
 
     private static final int SLOT_INFO = 22;
-    private static final int SLOT_BACK = 21;
-    private static final int SLOT_CLOSE = 23;
+    private static final int SLOT_BACK = 30;
+    private static final int SLOT_CLOSE = 32;
 
     private static final int[] THRESHOLD_SLOTS = {10, 11, 12, 13, 14, 15, 16, 17};
     private static final Item[] THRESHOLD_ITEMS = {
@@ -47,7 +47,7 @@ public class PlayerScoreboardEditorScreenHandler extends ScreenHandler {
 
     public PlayerScoreboardEditorScreenHandler(int syncId, PlayerInventory playerInventory,
                                                ServerPlayerEntity viewer, ServerPlayerEntity target) {
-        super(ScreenHandlerType.GENERIC_9X3, syncId);
+        super(ScreenHandlerType.GENERIC_9X4, syncId);
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
         this.targetName = target.getGameProfile().getName();

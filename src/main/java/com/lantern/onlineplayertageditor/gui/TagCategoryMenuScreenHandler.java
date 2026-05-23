@@ -23,14 +23,14 @@ import java.util.function.Consumer;
 
 public class TagCategoryMenuScreenHandler extends ScreenHandler {
 
-    private static final int ROWS = 2;
-    private static final int CONTAINER_SIZE = ROWS * 9; // 18
+    private static final int ROWS = 3;
+    private static final int CONTAINER_SIZE = ROWS * 9; // 27
 
-    private static final int SLOT_CHARACTER = 2;
-    private static final int SLOT_MAGIC = 4;
-    private static final int SLOT_IDENTITY = 6;
-    private static final int SLOT_BACK = 12;
-    private static final int SLOT_CLOSE = 14;
+    private static final int SLOT_CHARACTER = 11;
+    private static final int SLOT_MAGIC = 13;
+    private static final int SLOT_IDENTITY = 15;
+    private static final int SLOT_BACK = 21;
+    private static final int SLOT_CLOSE = 23;
 
     private final ServerPlayerEntity viewer;
     private final UUID targetUuid;

@@ -49,8 +49,8 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         for (String tag : ConfigManager.getConfig().presetTags) {
             if (getCategory(tag) == categoryFilter) count++;
         }
-        int tagRows = (int) Math.ceil((double) count / 9);
-        return Math.max(2, Math.min(6, tagRows + 1));
+        int tagRows = Math.max(1, (int) Math.ceil((double) count / 9));
+        return Math.min(6, tagRows + 2);
     }
 
     private static ScreenHandlerType<?> getType(int rows) {
@@ -82,8 +82,8 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         super(getType(calculateRows(categoryFilter)), syncId);
         this.rows = calculateRows(categoryFilter);
         this.containerSize = rows * 9;
-        this.tagSlotCount = (rows - 1) * 9;
-        this.navRow = tagSlotCount;
+        this.tagSlotCount = (rows - 2) * 9;
+        this.navRow = (rows - 1) * 9;
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
         this.targetName = target.getGameProfile().getName();
@@ -183,20 +183,20 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         }
 
         int maxRow = currentRow;
-        int totalPages = Math.max(1, maxRow / (rows - 1) + 1);
+        int totalPages = Math.max(1, maxRow / (rows - 2) + 1);
         if (page >= totalPages) page = totalPages - 1;
         if (page < 0) page = 0;
 
         int pageStartSlot = page * tagSlotCount;
         int pageEndSlot = pageStartSlot + tagSlotCount;
 
-        // Preset tag buttons
+        // Preset tag buttons (offset by 9 to skip top padding row)
         for (int i = 0; i < presetTags.size(); i++) {
             int globalSlot = tagSlots[i];
             if (globalSlot < pageStartSlot || globalSlot >= pageEndSlot) continue;
 
             String tag = presetTags.get(i);
-            int slotIdx = globalSlot - pageStartSlot;
+            int slotIdx = 9 + (globalSlot - pageStartSlot);
 
             boolean hasTag = target != null && TagService.hasTag(target, tag);
             String displayName = ConfigManager.getConfig().getDisplayName(tag);

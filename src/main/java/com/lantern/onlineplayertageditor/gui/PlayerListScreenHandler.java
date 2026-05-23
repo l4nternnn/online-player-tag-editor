@@ -26,8 +26,8 @@ import java.util.*;
 public class PlayerListScreenHandler extends ScreenHandler {
 
     private static int calculateRows(int playerCount) {
-        int tagRows = Math.max(1, Math.min(5, (int) Math.ceil((double) Math.max(1, playerCount) / 9)));
-        return tagRows + 1; // +1 for navigation row
+        int tagRows = Math.max(1, Math.min(4, (int) Math.ceil((double) Math.max(1, playerCount) / 9)));
+        return tagRows + 2; // top padding + tags + nav
     }
 
     private static ScreenHandlerType<?> getType(int rows) {
@@ -55,8 +55,8 @@ public class PlayerListScreenHandler extends ScreenHandler {
         super(getType(calculateRows(viewer.getServer().getPlayerManager().getPlayerList().size())), syncId);
         this.rows = calculateRows(viewer.getServer().getPlayerManager().getPlayerList().size());
         this.containerSize = rows * 9;
-        this.playerSlots = (rows - 1) * 9;
-        this.navRow = playerSlots;
+        this.playerSlots = (rows - 2) * 9;
+        this.navRow = (rows - 1) * 9;
         this.viewer = viewer;
         this.inventory = new SimpleInventory(containerSize);
 
@@ -105,7 +105,7 @@ public class PlayerListScreenHandler extends ScreenHandler {
         // Player heads
         for (int i = start; i < end; i++) {
             ServerPlayerEntity target = onlinePlayers.get(i);
-            int slotIdx = i - start;
+            int slotIdx = 9 + (i - start);
 
             ItemStack head = new ItemStack(Items.PLAYER_HEAD);
             head.set(DataComponentTypes.CUSTOM_NAME,
