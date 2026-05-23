@@ -338,9 +338,10 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
             return;
         }
 
-        // Tag button clicked
-        if (slotIndex >= 0 && slotIndex < tagSlotCount) {
-            int globalSlot = page * tagSlotCount + slotIndex;
+        // Tag button clicked (tags start at slot 9, row 1)
+        int relSlot = slotIndex - 9;
+        if (relSlot >= 0 && relSlot < tagSlotCount) {
+            int globalSlot = page * tagSlotCount + relSlot;
             for (int i = 0; i < tagSlots.length; i++) {
                 if (tagSlots[i] == globalSlot) {
                     toggleTag(player, getActiveTag(i));

@@ -227,9 +227,10 @@ public class PlayerListScreenHandler extends ScreenHandler {
             return;
         }
 
-        // Player head clicked
-        if (slotIndex >= 0 && slotIndex < playerSlots) {
-            int playerIndex = page * playerSlots + slotIndex;
+        // Player head clicked (heads start at slot 9, row 1)
+        int relSlot = slotIndex - 9;
+        if (relSlot >= 0 && relSlot < playerSlots) {
+            int playerIndex = page * playerSlots + relSlot;
             if (playerIndex >= 0 && playerIndex < onlinePlayers.size()) {
                 ServerPlayerEntity target = onlinePlayers.get(playerIndex);
                 player.getServer().execute(() -> {
