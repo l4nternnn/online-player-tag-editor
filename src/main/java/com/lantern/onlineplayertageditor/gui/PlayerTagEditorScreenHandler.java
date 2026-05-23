@@ -37,7 +37,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     // Category detection: character tags, magic tags, identity/other
     private static final Set<String> CHARACTER_TAGS = Set.of(
             "ema", "cero", "nnk", "mago", "milya",
-            "sherry", "yalisa", "noa", "anan", "yuki",
+            "sherry", "yalisa", "noa", "anan", "yuki", "leiya",
             "mll", "coco", "hanna"
     );
     private static final Set<String> MAGIC_TAGS = Set.of(
