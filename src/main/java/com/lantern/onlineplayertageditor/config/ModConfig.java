@@ -20,8 +20,8 @@ public class ModConfig {
         // 角色 Tags
         config.presetTags.addAll(List.of(
                 "ema", "cero", "nnk", "mago", "milya",
-                "sherry", "yalisa", "noa", "anan", "yuki",
-                "mll", "coco", "hanna", "leiya"
+                "sherry", "yalisa", "noa", "anan", "yuki", "leiya",
+                "mll", "coco", "hanna"
         ));
 
         // 魔法 Tags
