@@ -21,7 +21,7 @@ public class ModConfig {
         config.presetTags.addAll(List.of(
                 "ema", "cero", "nnk", "mago", "milya",
                 "sherry", "yalisa", "noa", "anan", "yuki",
-                "mll", "coco", "hanna"
+                "mll", "coco", "hanna", "leiya"
         ));
 
         // 魔法 Tags
@@ -52,6 +52,7 @@ public class ModConfig {
         config.tagDisplayNames.put("mll", "冰上梅露露");
         config.tagDisplayNames.put("coco", "泽渡可可");
         config.tagDisplayNames.put("hanna", "远野汉娜");
+        config.tagDisplayNames.put("leiya", "莲见蕾雅");
 
         // 魔法显示名
         config.tagDisplayNames.put("WitchSlayer", "魔杀");
