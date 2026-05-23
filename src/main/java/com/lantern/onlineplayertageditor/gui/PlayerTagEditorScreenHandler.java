@@ -24,16 +24,6 @@ import java.util.*;
 
 public class PlayerTagEditorScreenHandler extends ScreenHandler {
 
-    private static final int ROWS = 6;
-    private static final int CONTAINER_SIZE = ROWS * 9; // 54
-    private static final int TAG_SLOTS = (ROWS - 1) * 9; // 45
-
-    private static final int NAV_ROW = TAG_SLOTS; // 45
-    private static final int SLOT_BACK = NAV_ROW + 0;      // 45
-    private static final int SLOT_REFRESH = NAV_ROW + 3;   // 48
-    private static final int SLOT_VIEW_ALL = NAV_ROW + 5;  // 50
-    private static final int SLOT_CLEAR = NAV_ROW + 8;     // 53
-
     // Category detection: character tags, magic tags, identity/other
     private static final Set<String> CHARACTER_TAGS = Set.of(
             "ema", "cero", "nnk", "mago", "milya",
@@ -50,9 +40,34 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     private static int getCategory(String tag) {
         if (CHARACTER_TAGS.contains(tag)) return 0;
         if (MAGIC_TAGS.contains(tag)) return 1;
-        return 2; // identity & custom
+        return 2;
     }
 
+    private static int calculateRows(int categoryFilter) {
+        if (categoryFilter == -1) return 6;
+        int count = 0;
+        for (String tag : ConfigManager.getConfig().presetTags) {
+            if (getCategory(tag) == categoryFilter) count++;
+        }
+        int tagRows = (int) Math.ceil((double) count / 9);
+        return Math.max(2, Math.min(6, tagRows + 1));
+    }
+
+    private static ScreenHandlerType<?> getType(int rows) {
+        return switch (rows) {
+            case 1 -> ScreenHandlerType.GENERIC_9X1;
+            case 2 -> ScreenHandlerType.GENERIC_9X2;
+            case 3 -> ScreenHandlerType.GENERIC_9X3;
+            case 4 -> ScreenHandlerType.GENERIC_9X4;
+            case 5 -> ScreenHandlerType.GENERIC_9X5;
+            default -> ScreenHandlerType.GENERIC_9X6;
+        };
+    }
+
+    private final int rows;
+    private final int containerSize;
+    private final int tagSlotCount;
+    private final int navRow;
     private final ServerPlayerEntity viewer;
     private final UUID targetUuid;
     private String targetName;
@@ -64,29 +79,34 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
 
     public PlayerTagEditorScreenHandler(int syncId, PlayerInventory playerInventory,
                                         ServerPlayerEntity viewer, ServerPlayerEntity target, int categoryFilter) {
-        super(ScreenHandlerType.GENERIC_9X6, syncId);
+        super(getType(calculateRows(categoryFilter)), syncId);
+        this.rows = calculateRows(categoryFilter);
+        this.containerSize = rows * 9;
+        this.tagSlotCount = (rows - 1) * 9;
+        this.navRow = tagSlotCount;
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
         this.targetName = target.getGameProfile().getName();
-        this.inventory = new SimpleInventory(CONTAINER_SIZE);
+        this.inventory = new SimpleInventory(containerSize);
         this.page = 0;
         this.categoryFilter = categoryFilter;
 
         // Container slots
-        for (int i = 0; i < CONTAINER_SIZE; i++) {
+        for (int i = 0; i < containerSize; i++) {
             this.addSlot(new Slot(inventory, i, 8 + (i % 9) * 18, 18 + (i / 9) * 18));
         }
 
-        // Player inventory (3 rows)
+        // Player inventory (3 rows) + hotbar, positioned below container
+        int inventoryY = 18 + rows * 18;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 140 + row * 18));
+                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, inventoryY + row * 18));
             }
         }
 
         // Hotbar
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 198));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, inventoryY + 58));
         }
 
         updateDisplay();
@@ -116,7 +136,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     }
 
     private void updateDisplay() {
-        for (int i = 0; i < CONTAINER_SIZE; i++) {
+        for (int i = 0; i < containerSize; i++) {
             inventory.setStack(i, ItemStack.EMPTY);
         }
 
@@ -138,7 +158,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
             presetTags = new ArrayList<>(allPresetTags);
         }
 
-        // Build category-aware slot mapping: each category starts on a new row
+        // Build slot mapping: when showing all categories, each category starts on a new row
         int currentRow = 0;
         int currentCol = 0;
         int lastCategory = -1;
@@ -163,12 +183,12 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         }
 
         int maxRow = currentRow;
-        int totalPages = Math.max(1, maxRow / (ROWS - 1) + 1);
+        int totalPages = Math.max(1, maxRow / (rows - 1) + 1);
         if (page >= totalPages) page = totalPages - 1;
         if (page < 0) page = 0;
 
-        int pageStartSlot = page * TAG_SLOTS;
-        int pageEndSlot = pageStartSlot + TAG_SLOTS;
+        int pageStartSlot = page * tagSlotCount;
+        int pageEndSlot = pageStartSlot + tagSlotCount;
 
         // Preset tag buttons
         for (int i = 0; i < presetTags.size(); i++) {
@@ -207,10 +227,10 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         }
 
         // Navigation items
-        // Back button
+        String backLabel = categoryFilter != -1 ? "返回分类选择" : "返回玩家列表";
         ItemStack back = new ItemStack(Items.ARROW);
-        back.set(DataComponentTypes.CUSTOM_NAME, Text.literal("返回玩家列表").formatted(Formatting.WHITE));
-        inventory.setStack(SLOT_BACK, back);
+        back.set(DataComponentTypes.CUSTOM_NAME, Text.literal(backLabel).formatted(Formatting.WHITE));
+        inventory.setStack(navRow + 0, back);
 
         // Refresh button
         ItemStack refresh = new ItemStack(Items.CLOCK);
@@ -220,7 +240,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
                     Text.literal("第 " + (page + 1) + " / " + totalPages + " 页").formatted(Formatting.GRAY)
             )));
         }
-        inventory.setStack(SLOT_REFRESH, refresh);
+        inventory.setStack(navRow + 3, refresh);
 
         // View all tags
         ItemStack viewAll = new ItemStack(Items.BOOK);
@@ -228,16 +248,16 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         viewAll.set(DataComponentTypes.LORE, new LoreComponent(List.of(
                 Text.literal("在聊天栏显示目标玩家的所有 tags").formatted(Formatting.GRAY)
         )));
-        inventory.setStack(SLOT_VIEW_ALL, viewAll);
+        inventory.setStack(navRow + 5, viewAll);
 
         // Clear preset tags
         ItemStack clear = new ItemStack(Items.BARRIER);
-        clear.set(DataComponentTypes.CUSTOM_NAME, Text.literal("清除配置内 tags").formatted(Formatting.RED));
+        clear.set(DataComponentTypes.CUSTOM_NAME, Text.literal("清除当前分类 tags").formatted(Formatting.RED));
         clear.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.literal("仅移除预设列表中的 tags").formatted(Formatting.GRAY),
+                Text.literal("仅移除当前分类的预设 tags").formatted(Formatting.GRAY),
                 Text.literal("不会删除玩家的其他 tags").formatted(Formatting.GRAY)
         )));
-        inventory.setStack(SLOT_CLEAR, clear);
+        inventory.setStack(navRow + 8, clear);
     }
 
     @Override
@@ -264,7 +284,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
 
     @Override
     public void onSlotClick(int slotIndex, int button, SlotActionType actionType, PlayerEntity player) {
-        if (slotIndex >= 0 && slotIndex < CONTAINER_SIZE) {
+        if (slotIndex >= 0 && slotIndex < containerSize) {
             if (player instanceof ServerPlayerEntity sp) {
                 handleClick(slotIndex, sp);
             }
@@ -284,8 +304,8 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
             return;
         }
 
-        // Navigation handlers
-        if (slotIndex == SLOT_BACK) {
+        // Back button
+        if (slotIndex == navRow + 0) {
             navigating = true;
             ServerPlayerEntity backTarget = getTarget();
             player.getServer().execute(() -> {
@@ -299,25 +319,28 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
             return;
         }
 
-        if (slotIndex == SLOT_REFRESH) {
+        // Refresh button
+        if (slotIndex == navRow + 3) {
             page = 0;
             updateDisplay();
             return;
         }
 
-        if (slotIndex == SLOT_VIEW_ALL) {
+        // View all tags
+        if (slotIndex == navRow + 5) {
             viewAllTags(player);
             return;
         }
 
-        if (slotIndex == SLOT_CLEAR) {
+        // Clear preset tags
+        if (slotIndex == navRow + 8) {
             clearPresetTags(player);
             return;
         }
 
         // Tag button clicked
-        if (slotIndex >= 0 && slotIndex < TAG_SLOTS) {
-            int globalSlot = page * TAG_SLOTS + slotIndex;
+        if (slotIndex >= 0 && slotIndex < tagSlotCount) {
+            int globalSlot = page * tagSlotCount + slotIndex;
             for (int i = 0; i < tagSlots.length; i++) {
                 if (tagSlots[i] == globalSlot) {
                     toggleTag(player, getActiveTag(i));
@@ -389,7 +412,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
                 found++;
             }
         }
-        return allTags.get(index); // fallback
+        return allTags.get(index);
     }
 
     private List<String> getActivePresetTags() {
