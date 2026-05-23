@@ -60,15 +60,17 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     private int page;
     private int[] tagSlots = new int[0];
     private boolean navigating = false;
+    private int categoryFilter = -1;
 
     public PlayerTagEditorScreenHandler(int syncId, PlayerInventory playerInventory,
-                                        ServerPlayerEntity viewer, ServerPlayerEntity target) {
+                                        ServerPlayerEntity viewer, ServerPlayerEntity target, int categoryFilter) {
         super(ScreenHandlerType.GENERIC_9X6, syncId);
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
         this.targetName = target.getGameProfile().getName();
         this.inventory = new SimpleInventory(CONTAINER_SIZE);
         this.page = 0;
+        this.categoryFilter = categoryFilter;
 
         // Container slots
         for (int i = 0; i < CONTAINER_SIZE; i++) {
@@ -91,10 +93,20 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     }
 
     public static void open(ServerPlayerEntity viewer, ServerPlayerEntity target) {
+        open(viewer, target, -1);
+    }
+
+    public static void open(ServerPlayerEntity viewer, ServerPlayerEntity target, int category) {
+        String title = switch (category) {
+            case 0 -> "角色 Tags 编辑：" + target.getGameProfile().getName();
+            case 1 -> "魔法 Tags 编辑：" + target.getGameProfile().getName();
+            case 2 -> "身份 Tags 编辑：" + target.getGameProfile().getName();
+            default -> "编辑 Tags：" + target.getGameProfile().getName();
+        };
         NamedScreenHandlerFactory factory = new SimpleNamedScreenHandlerFactory(
                 (syncId, inv, p) -> new PlayerTagEditorScreenHandler(syncId, inv,
-                        (ServerPlayerEntity) p, target),
-                Text.literal("编辑 Tags: " + target.getGameProfile().getName())
+                        (ServerPlayerEntity) p, target, category),
+                Text.literal(title)
         );
         viewer.openHandledScreen(factory);
     }
@@ -113,7 +125,18 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
             targetName = target.getGameProfile().getName();
         }
 
-        List<String> presetTags = ConfigManager.getConfig().presetTags;
+        List<String> allPresetTags = ConfigManager.getConfig().presetTags;
+        List<String> presetTags;
+        if (categoryFilter != -1) {
+            presetTags = new ArrayList<>();
+            for (String tag : allPresetTags) {
+                if (getCategory(tag) == categoryFilter) {
+                    presetTags.add(tag);
+                }
+            }
+        } else {
+            presetTags = new ArrayList<>(allPresetTags);
+        }
 
         // Build category-aware slot mapping: each category starts on a new row
         int currentRow = 0;
@@ -124,7 +147,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         for (int i = 0; i < presetTags.size(); i++) {
             int category = getCategory(presetTags.get(i));
 
-            if (category != lastCategory && lastCategory != -1) {
+            if (categoryFilter == -1 && category != lastCategory && lastCategory != -1) {
                 currentRow++;
                 currentCol = 0;
             }
@@ -228,7 +251,11 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         if (!navigating && player instanceof ServerPlayerEntity sp) {
             ServerPlayerEntity target = sp.getServer().getPlayerManager().getPlayer(targetUuid);
             if (target != null) {
-                sp.getServer().execute(() -> PlayerActionMenuScreenHandler.open(sp, target));
+                if (categoryFilter != -1) {
+                    sp.getServer().execute(() -> TagCategoryMenuScreenHandler.open(sp, target));
+                } else {
+                    sp.getServer().execute(() -> PlayerActionMenuScreenHandler.open(sp, target));
+                }
             } else {
                 sp.getServer().execute(() -> PlayerListScreenHandler.open(sp));
             }
@@ -260,9 +287,14 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         // Navigation handlers
         if (slotIndex == SLOT_BACK) {
             navigating = true;
+            ServerPlayerEntity backTarget = getTarget();
             player.getServer().execute(() -> {
                 player.closeHandledScreen();
-                PlayerListScreenHandler.open(player);
+                if (categoryFilter != -1 && backTarget != null) {
+                    TagCategoryMenuScreenHandler.open(player, backTarget);
+                } else {
+                    PlayerListScreenHandler.open(player);
+                }
             });
             return;
         }
@@ -288,10 +320,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
             int globalSlot = page * TAG_SLOTS + slotIndex;
             for (int i = 0; i < tagSlots.length; i++) {
                 if (tagSlots[i] == globalSlot) {
-                    List<String> presetTags = ConfigManager.getConfig().presetTags;
-                    if (i < presetTags.size()) {
-                        toggleTag(player, presetTags.get(i));
-                    }
+                    toggleTag(player, getActiveTag(i));
                     break;
                 }
             }
@@ -348,6 +377,34 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
         }
     }
 
+    private String getActiveTag(int index) {
+        List<String> allTags = ConfigManager.getConfig().presetTags;
+        if (categoryFilter == -1) {
+            return allTags.get(index);
+        }
+        int found = 0;
+        for (String tag : allTags) {
+            if (getCategory(tag) == categoryFilter) {
+                if (found == index) return tag;
+                found++;
+            }
+        }
+        return allTags.get(index); // fallback
+    }
+
+    private List<String> getActivePresetTags() {
+        if (categoryFilter == -1) {
+            return new ArrayList<>(ConfigManager.getConfig().presetTags);
+        }
+        List<String> filtered = new ArrayList<>();
+        for (String tag : ConfigManager.getConfig().presetTags) {
+            if (getCategory(tag) == categoryFilter) {
+                filtered.add(tag);
+            }
+        }
+        return filtered;
+    }
+
     private void clearPresetTags(ServerPlayerEntity player) {
         ServerPlayerEntity target = getTarget();
         if (target == null) {
@@ -360,8 +417,9 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
             return;
         }
 
-        TagService.clearPresetTags(target, ConfigManager.getConfig().presetTags);
-        player.sendMessage(Text.literal("已清除 " + targetName + " 的所有预设 tags").formatted(Formatting.YELLOW));
+        List<String> tagsToClear = getActivePresetTags();
+        TagService.clearPresetTags(target, tagsToClear);
+        player.sendMessage(Text.literal("已清除 " + targetName + " 的当前分类预设 tags").formatted(Formatting.YELLOW));
         updateDisplay();
     }
 }

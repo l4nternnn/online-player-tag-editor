@@ -21,13 +21,14 @@ import net.minecraft.util.Formatting;
 import java.util.*;
 import java.util.function.Consumer;
 
-public class PlayerActionMenuScreenHandler extends ScreenHandler {
+public class TagCategoryMenuScreenHandler extends ScreenHandler {
 
     private static final int ROWS = 3;
     private static final int CONTAINER_SIZE = ROWS * 9; // 27
 
-    private static final int SLOT_TAGS = 12;
-    private static final int SLOT_SCOREBOARD = 14;
+    private static final int SLOT_CHARACTER = 11;
+    private static final int SLOT_MAGIC = 13;
+    private static final int SLOT_IDENTITY = 15;
     private static final int SLOT_BACK = 21;
     private static final int SLOT_CLOSE = 23;
 
@@ -38,8 +39,8 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
     private final Map<Integer, Consumer<ServerPlayerEntity>> slotActions = new HashMap<>();
     private boolean navigating = false;
 
-    public PlayerActionMenuScreenHandler(int syncId, PlayerInventory playerInventory,
-                                         ServerPlayerEntity viewer, ServerPlayerEntity target) {
+    public TagCategoryMenuScreenHandler(int syncId, PlayerInventory playerInventory,
+                                        ServerPlayerEntity viewer, ServerPlayerEntity target) {
         super(ScreenHandlerType.GENERIC_9X3, syncId);
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
@@ -65,9 +66,9 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
 
     public static void open(ServerPlayerEntity viewer, ServerPlayerEntity target) {
         NamedScreenHandlerFactory factory = new SimpleNamedScreenHandlerFactory(
-                (syncId, inv, p) -> new PlayerActionMenuScreenHandler(syncId, inv,
+                (syncId, inv, p) -> new TagCategoryMenuScreenHandler(syncId, inv,
                         (ServerPlayerEntity) p, target),
-                Text.literal("管理玩家：" + target.getGameProfile().getName())
+                Text.literal("Tags 分类编辑：" + target.getGameProfile().getName())
         );
         viewer.openHandledScreen(factory);
     }
@@ -87,35 +88,46 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
             targetName = target.getGameProfile().getName();
         }
 
-        // Tags Edit button
-        ItemStack tagsItem = new ItemStack(Items.NAME_TAG);
-        tagsItem.set(DataComponentTypes.CUSTOM_NAME, Text.literal("Tags 编辑").formatted(Formatting.GOLD));
-        tagsItem.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.literal("编辑该玩家的原版 Entity Tags").formatted(Formatting.GRAY),
-                Text.literal("对应原版 /tag 系统").formatted(Formatting.GRAY),
+        // 角色 Tags 按钮
+        ItemStack characterItem = new ItemStack(Items.PLAYER_HEAD);
+        characterItem.set(DataComponentTypes.CUSTOM_NAME, Text.literal("角色 Tags 编辑").formatted(Formatting.GOLD));
+        characterItem.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                Text.literal("编辑角色相关的预设 Tags").formatted(Formatting.GRAY),
+                Text.literal("包含所有角色名称 Tag").formatted(Formatting.GRAY),
                 Text.literal("点击进入").formatted(Formatting.YELLOW)
         )));
-        inventory.setStack(SLOT_TAGS, tagsItem);
-        slotActions.put(SLOT_TAGS, this::handleTagsEdit);
+        inventory.setStack(SLOT_CHARACTER, characterItem);
+        slotActions.put(SLOT_CHARACTER, p -> handleCategory(p, 0));
 
-        // Scoreboard Edit button
-        ItemStack scoreItem = new ItemStack(Items.EXPERIENCE_BOTTLE);
-        scoreItem.set(DataComponentTypes.CUSTOM_NAME, Text.literal("monvhua 计分板编辑").formatted(Formatting.AQUA));
-        scoreItem.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.literal("编辑该玩家的 monvhua 计分板分数").formatted(Formatting.GRAY),
-                Text.literal("用于与服务器内已有数据包联动").formatted(Formatting.GRAY),
+        // 魔法 Tags 按钮
+        ItemStack magicItem = new ItemStack(Items.BLAZE_POWDER);
+        magicItem.set(DataComponentTypes.CUSTOM_NAME, Text.literal("魔法 Tags 编辑").formatted(Formatting.LIGHT_PURPLE));
+        magicItem.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                Text.literal("编辑魔法相关的预设 Tags").formatted(Formatting.GRAY),
+                Text.literal("包含所有魔法能力 Tag").formatted(Formatting.GRAY),
                 Text.literal("点击进入").formatted(Formatting.YELLOW)
         )));
-        inventory.setStack(SLOT_SCOREBOARD, scoreItem);
-        slotActions.put(SLOT_SCOREBOARD, this::handleScoreboardEdit);
+        inventory.setStack(SLOT_MAGIC, magicItem);
+        slotActions.put(SLOT_MAGIC, p -> handleCategory(p, 1));
 
-        // Back button
+        // 身份 Tags 按钮
+        ItemStack identityItem = new ItemStack(Items.NAME_TAG);
+        identityItem.set(DataComponentTypes.CUSTOM_NAME, Text.literal("身份 Tags 编辑").formatted(Formatting.AQUA));
+        identityItem.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                Text.literal("编辑身份相关的预设 Tags").formatted(Formatting.GRAY),
+                Text.literal("包含身份/职业 Tag").formatted(Formatting.GRAY),
+                Text.literal("点击进入").formatted(Formatting.YELLOW)
+        )));
+        inventory.setStack(SLOT_IDENTITY, identityItem);
+        slotActions.put(SLOT_IDENTITY, p -> handleCategory(p, 2));
+
+        // 返回按钮
         ItemStack back = new ItemStack(Items.ARROW);
-        back.set(DataComponentTypes.CUSTOM_NAME, Text.literal("返回玩家列表").formatted(Formatting.WHITE));
+        back.set(DataComponentTypes.CUSTOM_NAME, Text.literal("返回管理菜单").formatted(Formatting.WHITE));
         inventory.setStack(SLOT_BACK, back);
         slotActions.put(SLOT_BACK, this::handleBack);
 
-        // Close button
+        // 关闭按钮
         ItemStack close = new ItemStack(Items.BARRIER);
         close.set(DataComponentTypes.CUSTOM_NAME, Text.literal("关闭").formatted(Formatting.RED));
         inventory.setStack(SLOT_CLOSE, close);
@@ -131,7 +143,12 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);
         if (!navigating && player instanceof ServerPlayerEntity sp) {
-            sp.getServer().execute(() -> PlayerListScreenHandler.open(sp));
+            ServerPlayerEntity target = sp.getServer().getPlayerManager().getPlayer(targetUuid);
+            if (target != null) {
+                sp.getServer().execute(() -> PlayerActionMenuScreenHandler.open(sp, target));
+            } else {
+                sp.getServer().execute(() -> PlayerListScreenHandler.open(sp));
+            }
         }
     }
 
@@ -163,7 +180,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
         }
     }
 
-    private void handleTagsEdit(ServerPlayerEntity player) {
+    private void handleCategory(ServerPlayerEntity player, int category) {
         if (!PermissionUtil.canEditTags(player)) {
             player.sendMessage(Text.literal("你没有权限编辑 Tags").formatted(Formatting.RED));
             return;
@@ -183,16 +200,11 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
         navigating = true;
         player.getServer().execute(() -> {
             player.closeHandledScreen();
-            TagCategoryMenuScreenHandler.open(player, target);
+            PlayerTagEditorScreenHandler.open(player, target, category);
         });
     }
 
-    private void handleScoreboardEdit(ServerPlayerEntity player) {
-        if (!PermissionUtil.canEditTags(player)) {
-            player.sendMessage(Text.literal("你没有权限编辑计分板").formatted(Formatting.RED));
-            return;
-        }
-
+    private void handleBack(ServerPlayerEntity player) {
         ServerPlayerEntity target = getTarget();
         if (target == null) {
             player.sendMessage(Text.literal("目标玩家已离线").formatted(Formatting.RED));
@@ -207,15 +219,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
         navigating = true;
         player.getServer().execute(() -> {
             player.closeHandledScreen();
-            PlayerScoreboardEditorScreenHandler.open(player, target);
-        });
-    }
-
-    private void handleBack(ServerPlayerEntity player) {
-        navigating = true;
-        player.getServer().execute(() -> {
-            player.closeHandledScreen();
-            PlayerListScreenHandler.open(player);
+            PlayerActionMenuScreenHandler.open(player, target);
         });
     }
 }
