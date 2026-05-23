@@ -41,7 +41,7 @@ public class TagCategoryMenuScreenHandler extends ScreenHandler {
 
     public TagCategoryMenuScreenHandler(int syncId, PlayerInventory playerInventory,
                                         ServerPlayerEntity viewer, ServerPlayerEntity target) {
-        super(ScreenHandlerType.GENERIC_9X3, syncId);
+        super(ScreenHandlerType.GENERIC_9X4, syncId);
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
         this.targetName = target.getGameProfile().getName();
@@ -143,7 +143,7 @@ public class TagCategoryMenuScreenHandler extends ScreenHandler {
     @Override
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);
-        if (!navigating && player instanceof ServerPlayerEntity sp) {
+        if (!navigating && player instanceof ServerPlayerEntity sp && !sp.isDisconnected()) {
             ServerPlayerEntity target = sp.getServer().getPlayerManager().getPlayer(targetUuid);
             if (target != null) {
                 sp.getServer().execute(() -> PlayerActionMenuScreenHandler.open(sp, target));

@@ -176,7 +176,7 @@ public class PlayerScoreboardEditorScreenHandler extends ScreenHandler {
     @Override
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);
-        if (!navigating && player instanceof ServerPlayerEntity sp) {
+        if (!navigating && player instanceof ServerPlayerEntity sp && !sp.isDisconnected()) {
             ServerPlayerEntity target = sp.getServer().getPlayerManager().getPlayer(targetUuid);
             if (target != null) {
                 sp.getServer().execute(() -> PlayerActionMenuScreenHandler.open(sp, target));

@@ -268,7 +268,7 @@ public class PlayerTagEditorScreenHandler extends ScreenHandler {
     @Override
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);
-        if (!navigating && player instanceof ServerPlayerEntity sp) {
+        if (!navigating && player instanceof ServerPlayerEntity sp && !sp.isDisconnected()) {
             ServerPlayerEntity target = sp.getServer().getPlayerManager().getPlayer(targetUuid);
             if (target != null) {
                 if (categoryFilter != -1) {

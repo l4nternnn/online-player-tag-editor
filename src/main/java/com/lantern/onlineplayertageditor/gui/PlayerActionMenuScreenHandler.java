@@ -40,7 +40,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
 
     public PlayerActionMenuScreenHandler(int syncId, PlayerInventory playerInventory,
                                          ServerPlayerEntity viewer, ServerPlayerEntity target) {
-        super(ScreenHandlerType.GENERIC_9X3, syncId);
+        super(ScreenHandlerType.GENERIC_9X4, syncId);
         this.viewer = viewer;
         this.targetUuid = target.getUuid();
         this.targetName = target.getGameProfile().getName();
@@ -131,7 +131,7 @@ public class PlayerActionMenuScreenHandler extends ScreenHandler {
     @Override
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);
-        if (!navigating && player instanceof ServerPlayerEntity sp) {
+        if (!navigating && player instanceof ServerPlayerEntity sp && !sp.isDisconnected()) {
             sp.getServer().execute(() -> PlayerListScreenHandler.open(sp));
         }
     }
