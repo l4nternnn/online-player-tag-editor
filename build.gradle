@@ -12,6 +12,14 @@ repositories {
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
+	maven {
+		name = "IzzelAliz Maven"
+		url = "https://maven.izzel.io/releases/"
+	}
+	maven {
+		name = "Modrinth"
+		url = "https://api.modrinth.com/maven"
+	}
 }
 
 loom {
@@ -34,6 +42,11 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	modImplementation "maven.modrinth:forge-config-api-port:${project.forge_config_api_port_version}"
+	runtimeOnly "com.electronwill.night-config:core:${project.night_config_version}"
+	runtimeOnly "com.electronwill.night-config:toml:${project.night_config_version}"
+	implementation "icyllis.modernui:ModernUI-Core:${project.modernui_core_version}"
+	modImplementation "icyllis.modernui:ModernUI-Fabric:${project.minecraft_version}-${project.modernui_version}"
 	
 }
 

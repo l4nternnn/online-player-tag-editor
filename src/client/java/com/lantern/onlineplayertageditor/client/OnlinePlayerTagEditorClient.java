@@ -22,6 +22,8 @@ public class OnlinePlayerTagEditorClient implements ClientModInitializer {
     public void onInitializeClient() {
         LOGGER.info("Online Player Tag Editor client initialized");
 
+        EditorClientNetworking.registerReceivers();
+
         openTagEditorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.online_player_tag_editor.open",
                 InputUtil.Type.KEYSYM,
@@ -32,7 +34,7 @@ public class OnlinePlayerTagEditorClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openTagEditorKey.wasPressed()) {
                 if (client.player != null && client.player.networkHandler != null) {
-                    client.player.networkHandler.sendChatCommand("playertags");
+                    client.player.networkHandler.sendChatCommand("tageditor");
                 } else if (client.player != null) {
                     client.player.sendMessage(
                             Text.literal("当前服务器可能未安装 Online Player Tag Editor")

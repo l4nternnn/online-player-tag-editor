@@ -1,9 +1,7 @@
 package com.lantern.onlineplayertageditor.command;
 
 import com.lantern.onlineplayertageditor.config.ConfigManager;
-import com.lantern.onlineplayertageditor.gui.PlayerActionMenuScreenHandler;
-import com.lantern.onlineplayertageditor.gui.PlayerListScreenHandler;
-import com.lantern.onlineplayertageditor.gui.PlayerTagEditorScreenHandler;
+import com.lantern.onlineplayertageditor.network.EditorNetworking;
 import com.lantern.onlineplayertageditor.tag.TagService;
 import com.lantern.onlineplayertageditor.util.PermissionUtil;
 import com.mojang.brigadier.CommandDispatcher;
@@ -30,7 +28,7 @@ public class PlayerTagsCommand {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(literal("playertags")
+            dispatcher.register(literal("tageditor")
                     .requires(PermissionUtil::canOpen)
                     .executes(PlayerTagsCommand::openGui)
                     .then(literal("reload")
@@ -72,7 +70,7 @@ public class PlayerTagsCommand {
             return 0;
         }
         ServerPlayerEntity player = source.getPlayerOrThrow();
-        PlayerListScreenHandler.open(player);
+        EditorNetworking.openEditor(player, null);
         return 1;
     }
 
@@ -90,7 +88,7 @@ public class PlayerTagsCommand {
             return 0;
         }
 
-        PlayerActionMenuScreenHandler.open(viewer, target);
+        EditorNetworking.openEditor(viewer, target.getUuid());
         return 1;
     }
 

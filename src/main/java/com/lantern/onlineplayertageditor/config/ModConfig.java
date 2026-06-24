@@ -29,7 +29,7 @@ public class ModConfig {
                 "WitchSlayer", "Reversal", "Floating", "Power", "BrainWash",
                 "Imitation", "Heal", "VisionControl", "Clairvoyance", "FireControl",
                 "LiquidControl", "Swap", "Vision", "Sandevistan", "Perception",
-                "Intervention"
+                "Intervention", "Through", "MindReading"
         ));
 
         // 身份 Tags
@@ -71,6 +71,8 @@ public class ModConfig {
         config.tagDisplayNames.put("Sandevistan", "过载");
         config.tagDisplayNames.put("Perception", "感知");
         config.tagDisplayNames.put("Intervention", "介入过去");
+        config.tagDisplayNames.put("Through", "穿墙");
+        config.tagDisplayNames.put("MindReading", "窃密");
 
         // 身份显示名
         config.tagDisplayNames.put("GrandWitch", "大魔女");
