@@ -2,6 +2,7 @@ package com.lantern.onlineplayertageditor.network;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.lantern.onlineplayertageditor.config.ConfigManager;
 import com.lantern.onlineplayertageditor.scoreboard.ScoreboardService;
 import com.lantern.onlineplayertageditor.tag.TagService;
 import com.lantern.onlineplayertageditor.util.PermissionUtil;
@@ -25,6 +26,8 @@ public final class EditorNetworking {
         PayloadTypeRegistry.playS2C().register(EditorPayloads.EditorNoticeS2C.ID, EditorPayloads.EditorNoticeS2C.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.RefreshEditorC2S.ID, EditorPayloads.RefreshEditorC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.ToggleTagC2S.ID, EditorPayloads.ToggleTagC2S.CODEC);
+        PayloadTypeRegistry.playC2S().register(EditorPayloads.AddPresetTagC2S.ID, EditorPayloads.AddPresetTagC2S.CODEC);
+        PayloadTypeRegistry.playC2S().register(EditorPayloads.RemovePresetTagC2S.ID, EditorPayloads.RemovePresetTagC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.ClearPresetTagsC2S.ID, EditorPayloads.ClearPresetTagsC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.SetMonvhuaScoreC2S.ID, EditorPayloads.SetMonvhuaScoreC2S.CODEC);
     }
@@ -35,6 +38,12 @@ public final class EditorNetworking {
 
         ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.ToggleTagC2S.ID,
                 (payload, context) -> toggleTag(context.player(), payload.targetPlayerUuid(), payload.tag()));
+
+        ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.AddPresetTagC2S.ID,
+                (payload, context) -> addPresetTag(context.player(), payload.selectedPlayerUuid(), payload.categoryId(), payload.displayName(), payload.tag()));
+
+        ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.RemovePresetTagC2S.ID,
+                (payload, context) -> removePresetTag(context.player(), payload.selectedPlayerUuid(), payload.categoryId(), payload.tag()));
 
         ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.ClearPresetTagsC2S.ID,
                 (payload, context) -> clearPresetTags(context.player(), payload.targetPlayerUuid(), payload.categoryId()));
@@ -79,6 +88,47 @@ public final class EditorNetworking {
         String message = added ? "已添加 tag: " + tag : "已移除 tag: " + tag;
         sendNotice(viewer, message, false);
         sendSnapshot(viewer, targetUuid);
+    }
+
+    private static void addPresetTag(ServerPlayerEntity viewer, UUID selectedUuid, String categoryId, String displayName, String tag) {
+        if (!PermissionUtil.canEditTags(viewer)) {
+            sendNotice(viewer, "你没有权限编辑 Tags", true);
+            return;
+        }
+
+        String error = TagService.validate(tag);
+        if (error != null) {
+            sendNotice(viewer, error, true);
+            sendSnapshot(viewer, selectedUuid);
+            return;
+        }
+        if (displayName == null || displayName.isBlank()) {
+            sendNotice(viewer, "名称不能为空", true);
+            sendSnapshot(viewer, selectedUuid);
+            return;
+        }
+
+        boolean added = ConfigManager.addPresetTag(TagCategory.fromId(categoryId).id(), tag, displayName.trim());
+        sendNotice(viewer, added ? "已添加可赋予 tag: " + displayName + " (" + tag + ")" : "已更新可赋予 tag: " + displayName + " (" + tag + ")", false);
+        sendSnapshot(viewer, selectedUuid);
+    }
+
+    private static void removePresetTag(ServerPlayerEntity viewer, UUID selectedUuid, String categoryId, String tag) {
+        if (!PermissionUtil.canEditTags(viewer)) {
+            sendNotice(viewer, "你没有权限编辑 Tags", true);
+            return;
+        }
+
+        String error = TagService.validate(tag);
+        if (error != null) {
+            sendNotice(viewer, error, true);
+            sendSnapshot(viewer, selectedUuid);
+            return;
+        }
+
+        boolean removed = ConfigManager.removePresetTag(tag);
+        sendNotice(viewer, removed ? "已从当前面板移除可赋予 tag: " + tag : "当前面板没有可移除 tag: " + tag, !removed);
+        sendSnapshot(viewer, selectedUuid);
     }
 
     private static void clearPresetTags(ServerPlayerEntity viewer, UUID targetUuid, String categoryId) {

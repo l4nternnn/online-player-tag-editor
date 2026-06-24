@@ -71,6 +71,41 @@ public final class EditorPayloads {
         }
     }
 
+    public record AddPresetTagC2S(UUID selectedPlayerUuid, String categoryId, String displayName, String tag) implements CustomPayload {
+        public static final Id<AddPresetTagC2S> ID = new Id<>(id("add_preset_tag"));
+        public static final PacketCodec<RegistryByteBuf, AddPresetTagC2S> CODEC = PacketCodec.ofStatic(
+                (buf, payload) -> {
+                    buf.writeUuid(payload.selectedPlayerUuid);
+                    buf.writeString(payload.categoryId);
+                    buf.writeString(payload.displayName);
+                    buf.writeString(payload.tag);
+                },
+                buf -> new AddPresetTagC2S(buf.readUuid(), buf.readString(), buf.readString(), buf.readString())
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    public record RemovePresetTagC2S(UUID selectedPlayerUuid, String categoryId, String tag) implements CustomPayload {
+        public static final Id<RemovePresetTagC2S> ID = new Id<>(id("remove_preset_tag"));
+        public static final PacketCodec<RegistryByteBuf, RemovePresetTagC2S> CODEC = PacketCodec.ofStatic(
+                (buf, payload) -> {
+                    buf.writeUuid(payload.selectedPlayerUuid);
+                    buf.writeString(payload.categoryId);
+                    buf.writeString(payload.tag);
+                },
+                buf -> new RemovePresetTagC2S(buf.readUuid(), buf.readString(), buf.readString())
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
     public record ClearPresetTagsC2S(UUID targetPlayerUuid, String categoryId) implements CustomPayload {
         public static final Id<ClearPresetTagsC2S> ID = new Id<>(id("clear_preset_tags"));
         public static final PacketCodec<RegistryByteBuf, ClearPresetTagsC2S> CODEC = uuidStringCodec(

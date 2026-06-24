@@ -53,7 +53,7 @@ public final class EditorSnapshotService {
                 .map(tag -> new EditorSnapshot.TagEntry(
                         tag,
                         config.getDisplayName(tag),
-                        TagCategory.forTag(tag).id(),
+                        config.getCategoryId(tag),
                         selectedTagSet.contains(tag)
                 ))
                 .toList();
@@ -79,9 +79,8 @@ public final class EditorSnapshotService {
     }
 
     public static List<String> getPresetTagsForCategory(String categoryId) {
-        TagCategory category = TagCategory.fromId(categoryId);
         return ConfigManager.getConfig().presetTags.stream()
-                .filter(tag -> TagCategory.forTag(tag) == category)
+                .filter(tag -> categoryId.equals(ConfigManager.getConfig().getCategoryId(tag)))
                 .toList();
     }
 }

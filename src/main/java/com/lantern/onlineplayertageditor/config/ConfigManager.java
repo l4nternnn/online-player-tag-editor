@@ -8,6 +8,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public class ConfigManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -33,6 +35,7 @@ public class ConfigManager {
                     save();
                     return;
                 }
+                normalize();
                 // Merge any new defaults not present in the saved config
                 ModConfig defaults = ModConfig.createDefault();
                 boolean changed = false;
@@ -71,12 +74,48 @@ public class ConfigManager {
         OnlinePlayerTagEditor.LOGGER.info("Config reloaded successfully");
     }
 
-    private static void save() {
+    public static boolean addPresetTag(String categoryId, String tag, String displayName) {
+        ModConfig config = getConfig();
+        boolean added = false;
+        if (!config.presetTags.contains(tag)) {
+            config.presetTags.add(tag);
+            added = true;
+        }
+        config.tagDisplayNames.put(tag, displayName.trim());
+        config.tagCategories.put(tag, categoryId);
+        save();
+        return added;
+    }
+
+    public static boolean removePresetTag(String tag) {
+        ModConfig config = getConfig();
+        boolean removed = config.presetTags.remove(tag);
+        boolean metadataRemoved = config.tagDisplayNames.remove(tag) != null;
+        metadataRemoved |= config.tagCategories.remove(tag) != null;
+        if (removed || metadataRemoved) {
+            save();
+        }
+        return removed;
+    }
+
+    public static void save() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             Files.writeString(CONFIG_PATH, GSON.toJson(config));
         } catch (IOException e) {
             OnlinePlayerTagEditor.LOGGER.error("Failed to save config", e);
+        }
+    }
+
+    private static void normalize() {
+        if (config.presetTags == null) {
+            config.presetTags = new ArrayList<>();
+        }
+        if (config.tagDisplayNames == null) {
+            config.tagDisplayNames = new HashMap<>();
+        }
+        if (config.tagCategories == null) {
+            config.tagCategories = new HashMap<>();
         }
     }
 }

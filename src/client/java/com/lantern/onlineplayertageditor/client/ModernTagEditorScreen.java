@@ -15,10 +15,13 @@ import icyllis.modernui.text.Editable;
 import icyllis.modernui.text.TextWatcher;
 import icyllis.modernui.view.Gravity;
 import icyllis.modernui.view.LayoutInflater;
+import icyllis.modernui.view.MotionEvent;
+import icyllis.modernui.view.PointerIcon;
 import icyllis.modernui.view.View;
 import icyllis.modernui.view.ViewGroup;
 import icyllis.modernui.widget.Button;
 import icyllis.modernui.widget.EditText;
+import icyllis.modernui.widget.FrameLayout;
 import icyllis.modernui.widget.LinearLayout;
 import icyllis.modernui.widget.ScrollView;
 import icyllis.modernui.widget.TextView;
@@ -27,14 +30,20 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import org.lwjgl.glfw.GLFW;
 
+import java.lang.reflect.Constructor;
 import java.util.Locale;
 import java.util.UUID;
 
 public final class ModernTagEditorScreen {
+    private static final PointerIcon VERTICAL_RESIZE_CURSOR = createVerticalResizeCursor();
+    private static final PointerIcon HORIZONTAL_RESIZE_CURSOR = createHorizontalResizeCursor();
     private static EditorFragment currentFragment;
     private static String activeTab = TagCategory.CHARACTER.id();
     private static String searchText = "";
+    private static int playersColumnWidth = 250;
+    private static int editorColumnWidth = 430;
 
     private ModernTagEditorScreen() {
     }
@@ -72,13 +81,23 @@ public final class ModernTagEditorScreen {
 
     public static final class EditorFragment extends Fragment implements ScreenCallback {
         private EditorSnapshot snapshot;
-        private LinearLayout root;
+        private FrameLayout root;
+        private LinearLayout contentRoot;
         private LinearLayout playerList;
         private LinearLayout detailPanel;
         private LinearLayout editorPanel;
+        private LinearLayout editorActions;
+        private View playersColumn;
+        private View detailColumn;
+        private View editorColumn;
+        private View dialogOverlay;
         private TextView noticeView;
         private boolean noticeIsError;
         private String noticeMessage = "";
+        private boolean tagDeleteMode;
+        private float dragStartRawX;
+        private int dragStartPlayersWidth;
+        private int dragStartEditorWidth;
 
         private EditorFragment(EditorSnapshot snapshot) {
             this.snapshot = snapshot;
@@ -89,15 +108,22 @@ public final class ModernTagEditorScreen {
                                  icyllis.modernui.util.DataSet savedInstanceState) {
             Context context = requireContext();
 
-            root = new LinearLayout(context);
-            root.setOrientation(LinearLayout.HORIZONTAL);
-            root.setPadding(14, 14, 14, 14);
+            root = new FrameLayout(context);
             root.setBackground(new ColorDrawable(0xCC101318));
             root.setLayoutParams(match());
 
-            root.addView(buildPlayersColumn(context), new LinearLayout.LayoutParams(250, ViewGroup.LayoutParams.MATCH_PARENT));
-            root.addView(buildDetailColumn(context), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.0f));
-            root.addView(buildEditorColumn(context), new LinearLayout.LayoutParams(430, ViewGroup.LayoutParams.MATCH_PARENT));
+            contentRoot = new LinearLayout(context);
+            contentRoot.setOrientation(LinearLayout.HORIZONTAL);
+            contentRoot.setPadding(14, 14, 14, 14);
+            playersColumn = buildPlayersColumn(context);
+            detailColumn = buildDetailColumn(context);
+            editorColumn = buildEditorColumn(context);
+            contentRoot.addView(playersColumn, new LinearLayout.LayoutParams(playersColumnWidth, ViewGroup.LayoutParams.MATCH_PARENT));
+            contentRoot.addView(horizontalResizeHandle(context, true), new LinearLayout.LayoutParams(10, ViewGroup.LayoutParams.MATCH_PARENT));
+            contentRoot.addView(detailColumn, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.0f));
+            contentRoot.addView(horizontalResizeHandle(context, false), new LinearLayout.LayoutParams(10, ViewGroup.LayoutParams.MATCH_PARENT));
+            contentRoot.addView(editorColumn, new LinearLayout.LayoutParams(editorColumnWidth, ViewGroup.LayoutParams.MATCH_PARENT));
+            root.addView(contentRoot, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
             rebuild();
             return root;
@@ -132,9 +158,15 @@ public final class ModernTagEditorScreen {
                 currentFragment = null;
             }
             root = null;
+            contentRoot = null;
             playerList = null;
             detailPanel = null;
             editorPanel = null;
+            editorActions = null;
+            playersColumn = null;
+            detailColumn = null;
+            editorColumn = null;
+            dialogOverlay = null;
             noticeView = null;
         }
 
@@ -174,12 +206,19 @@ public final class ModernTagEditorScreen {
             Button refresh = button(context, "刷新列表");
             refresh.setOnClickListener(v -> refreshSnapshot());
             column.addView(refresh, fullWidthWrap());
-            return column;
+            column.addView(resizeBoundary(context), fullWidthFixed(8));
+            return framedPanel(context, column);
         }
 
         private View buildDetailColumn(Context context) {
-            detailPanel = panel(context);
-            return detailPanel;
+            LinearLayout column = panel(context);
+            ScrollView scroll = new ScrollView(context);
+            detailPanel = new LinearLayout(context);
+            detailPanel.setOrientation(LinearLayout.VERTICAL);
+            scroll.addView(detailPanel, scrollChild());
+            column.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f));
+            column.addView(resizeBoundary(context), fullWidthFixed(8));
+            return framedPanel(context, column);
         }
 
         private View buildEditorColumn(Context context) {
@@ -190,10 +229,10 @@ public final class ModernTagEditorScreen {
 
             LinearLayout tabs = new LinearLayout(context);
             tabs.setOrientation(LinearLayout.HORIZONTAL);
-            tabs.addView(tabButton(context, TagCategory.CHARACTER.id(), "角色"));
-            tabs.addView(tabButton(context, TagCategory.MAGIC.id(), "魔法"));
-            tabs.addView(tabButton(context, TagCategory.IDENTITY.id(), "身份"));
-            tabs.addView(tabButton(context, "monvhua", "monvhua"));
+            tabs.addView(tabButton(context, TagCategory.CHARACTER.id(), "角色"), equalWidthWrap());
+            tabs.addView(tabButton(context, TagCategory.MAGIC.id(), "魔法"), equalWidthWrap());
+            tabs.addView(tabButton(context, TagCategory.IDENTITY.id(), "身份"), equalWidthWrap());
+            tabs.addView(tabButton(context, "monvhua", "monvhua"), equalWidthWrap());
             column.addView(tabs, fullWidthWrap());
 
             ScrollView scroll = new ScrollView(context);
@@ -201,13 +240,20 @@ public final class ModernTagEditorScreen {
             editorPanel.setOrientation(LinearLayout.VERTICAL);
             scroll.addView(editorPanel, scrollChild());
             column.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f));
-            return column;
+
+            editorActions = new LinearLayout(context);
+            editorActions.setOrientation(LinearLayout.HORIZONTAL);
+            editorActions.setGravity(Gravity.RIGHT);
+            column.addView(editorActions, fullWidthWrap());
+            column.addView(resizeBoundary(context), fullWidthFixed(8));
+            return framedPanel(context, column);
         }
 
         private View tabButton(Context context, String tab, String label) {
             Button button = button(context, activeTab.equals(tab) ? "● " + label : label);
             button.setOnClickListener(v -> {
                 activeTab = tab;
+                tagDeleteMode = false;
                 rebuild();
             });
             return button;
@@ -268,12 +314,16 @@ public final class ModernTagEditorScreen {
 
         private void rebuildEditor() {
             editorPanel.removeAllViews();
+            editorActions.removeAllViews();
             Context context = requireContext();
             if ("monvhua".equals(activeTab)) {
+                editorActions.setVisibility(View.GONE);
                 rebuildScoreEditor(context);
                 return;
             }
+            editorActions.setVisibility(View.VISIBLE);
             rebuildTagEditor(context, activeTab);
+            rebuildTagActions(context, activeTab);
         }
 
         private void rebuildTagEditor(Context context, String categoryId) {
@@ -289,7 +339,11 @@ public final class ModernTagEditorScreen {
                         send(new EditorPayloads.ToggleTagC2S(snapshot.selectedPlayerUuid(), tag.tag()));
                     }
                 });
-                editorPanel.addView(tagButton, fullWidthWrap());
+                if (tagDeleteMode) {
+                    editorPanel.addView(tagDeleteRow(context, tagButton, categoryId, tag.tag()), fullWidthWrap());
+                } else {
+                    editorPanel.addView(tagButton, fullWidthWrap());
+                }
             }
 
             Button clear = button(context, "清除当前分类预设 Tags");
@@ -300,6 +354,135 @@ public final class ModernTagEditorScreen {
                 }
             });
             editorPanel.addView(clear, fullWidthWrap());
+        }
+
+        private LinearLayout tagDeleteRow(Context context, Button tagButton, String categoryId, String tag) {
+            LinearLayout row = new LinearLayout(context);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.addView(tagButton, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+            Button delete = button(context, "X");
+            delete.setTextColor(0xFFFF6B6B);
+            delete.setOnClickListener(v -> showDeleteConfirmDialog(categoryId, tag));
+            row.addView(delete, new LinearLayout.LayoutParams(48, ViewGroup.LayoutParams.WRAP_CONTENT));
+            return row;
+        }
+
+        private void rebuildTagActions(Context context, String categoryId) {
+            View spacer = new View(context);
+            editorActions.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1.0f));
+
+            Button add = button(context, "增加");
+            add.setTextColor(0xFF69D28D);
+            add.setOnClickListener(v -> showAddTagDialog(categoryId));
+            editorActions.addView(add, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            Button remove = button(context, tagDeleteMode ? "完成" : "删除");
+            remove.setTextColor(tagDeleteMode ? 0xFF8FD3FF : 0xFFFF6B6B);
+            remove.setOnClickListener(v -> {
+                tagDeleteMode = !tagDeleteMode;
+                rebuildEditor();
+            });
+            editorActions.addView(remove, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
+        private String displayNameFor(String tag) {
+            String configured = snapshot.tagDisplayNames().get(tag);
+            if (configured != null && !configured.isBlank()) {
+                return configured;
+            }
+            return tag;
+        }
+
+        private void showAddTagDialog(String categoryId) {
+            UUID selected = snapshot.selectedPlayerUuid();
+            if (selected == null) {
+                setNotice("请先选择在线玩家", true);
+                return;
+            }
+
+            Context context = requireContext();
+            LinearLayout dialog = dialogPanel(context, "添加自定义 Tag");
+            TextView hint = body(context, "tag 只支持字母、数字、下划线、冒号、横线和点。");
+            dialog.addView(hint, fullWidthWrap());
+
+            EditText nameInput = new EditText(context);
+            nameInput.setHint("名称");
+            nameInput.setSingleLine(true);
+            nameInput.setTextSize(14);
+            nameInput.setPadding(8, 8, 8, 8);
+            dialog.addView(nameInput, fullWidthWrap());
+
+            EditText tagInput = new EditText(context);
+            tagInput.setHint("实际需要赋予的 tag");
+            tagInput.setSingleLine(true);
+            tagInput.setTextSize(14);
+            tagInput.setPadding(8, 8, 8, 8);
+            dialog.addView(tagInput, fullWidthWrap());
+
+            LinearLayout actions = new LinearLayout(context);
+            actions.setOrientation(LinearLayout.HORIZONTAL);
+            actions.setGravity(Gravity.RIGHT);
+
+            Button cancel = button(context, "取消");
+            cancel.setOnClickListener(v -> closeDialog());
+            actions.addView(cancel, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            Button confirm = button(context, "确认");
+            confirm.setTextColor(0xFF69D28D);
+            confirm.setOnClickListener(v -> {
+                String name = nameInput.getText().toString().trim();
+                String tag = tagInput.getText().toString().trim();
+                if (name.isEmpty()) {
+                    setNotice("名称不能为空", true);
+                    return;
+                }
+                if (tag.isEmpty()) {
+                    setNotice("Tag 不能为空", true);
+                    return;
+                }
+                closeDialog();
+                tagDeleteMode = false;
+                send(new EditorPayloads.AddPresetTagC2S(selected, categoryId, name, tag));
+            });
+            actions.addView(confirm, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+            dialog.addView(actions, fullWidthWrap());
+
+            showDialog(dialog);
+            nameInput.requestFocus();
+        }
+
+        private void showDeleteConfirmDialog(String categoryId, String tag) {
+            UUID selected = snapshot.selectedPlayerUuid();
+            if (selected == null) {
+                setNotice("请先选择在线玩家", true);
+                return;
+            }
+
+            Context context = requireContext();
+            LinearLayout dialog = dialogPanel(context, "确认移除面板项");
+            TextView message = body(context, "确定从当前面板移除 " + displayNameFor(tag) + " (" + tag + ") ?");
+            message.setTextColor(0xFFFFD166);
+            dialog.addView(message, fullWidthWrap());
+
+            LinearLayout actions = new LinearLayout(context);
+            actions.setOrientation(LinearLayout.HORIZONTAL);
+            actions.setGravity(Gravity.RIGHT);
+
+            Button cancel = button(context, "取消");
+            cancel.setOnClickListener(v -> closeDialog());
+            actions.addView(cancel, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            Button confirm = button(context, "确认");
+            confirm.setTextColor(0xFFFF6B6B);
+            confirm.setOnClickListener(v -> {
+                closeDialog();
+                send(new EditorPayloads.RemovePresetTagC2S(selected, categoryId, tag));
+            });
+            actions.addView(confirm, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+            dialog.addView(actions, fullWidthWrap());
+
+            showDialog(dialog);
         }
 
         private void rebuildScoreEditor(Context context) {
@@ -341,12 +524,122 @@ public final class ModernTagEditorScreen {
             }
         }
 
+        private View horizontalResizeHandle(Context context, boolean resizePlayersColumn) {
+            HorizontalResizeView handle = new HorizontalResizeView(context);
+            handle.setBackground(new ColorDrawable(0xFF8FD3FF));
+            handle.setOnTouchListener((view, event) -> {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN -> {
+                        dragStartRawX = event.getRawX();
+                        dragStartPlayersWidth = playersColumnWidth;
+                        dragStartEditorWidth = editorColumnWidth;
+                        return true;
+                    }
+                    case MotionEvent.ACTION_MOVE -> {
+                        int delta = Math.round(event.getRawX() - dragStartRawX);
+                        int minWidth = minColumnWidth();
+                        if (resizePlayersColumn) {
+                            playersColumnWidth = clamp(dragStartPlayersWidth + delta, minWidth, maxPlayersColumnWidth(minWidth));
+                        } else {
+                            editorColumnWidth = clamp(dragStartEditorWidth - delta, minWidth, maxEditorColumnWidth(minWidth));
+                        }
+                        applyColumnWidths();
+                        return true;
+                    }
+                    case MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        return true;
+                    }
+                    default -> {
+                        return false;
+                    }
+                }
+            });
+            return handle;
+        }
+
+        private int minColumnWidth() {
+            return Math.max(1, availableColumnWidth() / 10);
+        }
+
+        private int maxPlayersColumnWidth(int minWidth) {
+            return Math.max(minWidth, availableColumnWidth() - editorColumnWidth - minWidth);
+        }
+
+        private int maxEditorColumnWidth(int minWidth) {
+            return Math.max(minWidth, availableColumnWidth() - playersColumnWidth - minWidth);
+        }
+
+        private int availableColumnWidth() {
+            if (contentRoot == null) {
+                return playersColumnWidth + editorColumnWidth + 200;
+            }
+            int handleWidth = 20;
+            int width = contentRoot.getWidth() - contentRoot.getPaddingLeft() - contentRoot.getPaddingRight() - handleWidth;
+            return Math.max(10, width);
+        }
+
+        private void applyColumnWidths() {
+            if (playersColumn == null || editorColumn == null) {
+                return;
+            }
+            playersColumn.setLayoutParams(new LinearLayout.LayoutParams(playersColumnWidth, ViewGroup.LayoutParams.MATCH_PARENT));
+            editorColumn.setLayoutParams(new LinearLayout.LayoutParams(editorColumnWidth, ViewGroup.LayoutParams.MATCH_PARENT));
+            contentRoot.requestLayout();
+        }
+
+        private int clamp(int value, int min, int max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        private LinearLayout dialogPanel(Context context, String title) {
+            LinearLayout dialog = panel(context);
+            dialog.addView(title(context, title));
+            return dialog;
+        }
+
+        private void showDialog(View dialog) {
+            closeDialog();
+            Context context = requireContext();
+
+            FrameLayout overlay = new FrameLayout(context);
+            overlay.setBackground(new ColorDrawable(0x99000000));
+            overlay.setOnClickListener(v -> closeDialog());
+
+            dialog.setOnClickListener(v -> {
+            });
+            FrameLayout.LayoutParams dialogParams = new FrameLayout.LayoutParams(330, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+            overlay.addView(dialog, dialogParams);
+            root.addView(overlay, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            dialogOverlay = overlay;
+        }
+
+        private void closeDialog() {
+            if (dialogOverlay != null && root != null) {
+                root.removeView(dialogOverlay);
+            }
+            dialogOverlay = null;
+        }
+
         private LinearLayout panel(Context context) {
             LinearLayout panel = new LinearLayout(context);
             panel.setOrientation(LinearLayout.VERTICAL);
             panel.setPadding(10, 10, 10, 10);
             panel.setBackground(new ColorDrawable(0xAA1C222B));
             return panel;
+        }
+
+        private View resizeBoundary(Context context) {
+            ResizeBoundaryView view = new ResizeBoundaryView(context);
+            view.setBackground(new ColorDrawable(0xFF8FD3FF));
+            return view;
+        }
+
+        private FrameLayout framedPanel(Context context, View content) {
+            FrameLayout frame = new FrameLayout(context);
+            frame.setPadding(2, 2, 2, 2);
+            frame.setBackground(new ColorDrawable(0xFF536278));
+            frame.addView(content, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            return frame;
         }
 
         private TextView title(Context context, String text) {
@@ -389,6 +682,14 @@ public final class ModernTagEditorScreen {
             return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
 
+        private LinearLayout.LayoutParams equalWidthWrap() {
+            return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        }
+
+        private LinearLayout.LayoutParams fullWidthFixed(int height) {
+            return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height);
+        }
+
         private LinearLayout.LayoutParams match() {
             return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         }
@@ -408,6 +709,48 @@ public final class ModernTagEditorScreen {
         private String shortUuid(UUID uuid) {
             String value = uuid.toString();
             return value.substring(0, 8) + "..." + value.substring(value.length() - 8);
+        }
+    }
+
+    private static PointerIcon createVerticalResizeCursor() {
+        try {
+            Constructor<PointerIcon> constructor = PointerIcon.class.getDeclaredConstructor(int.class, long.class);
+            constructor.setAccessible(true);
+            return constructor.newInstance(-1, GLFW.glfwCreateStandardCursor(GLFW.GLFW_VRESIZE_CURSOR));
+        } catch (ReflectiveOperationException e) {
+            return PointerIcon.getSystemIcon(PointerIcon.TYPE_ARROW);
+        }
+    }
+
+    private static PointerIcon createHorizontalResizeCursor() {
+        try {
+            Constructor<PointerIcon> constructor = PointerIcon.class.getDeclaredConstructor(int.class, long.class);
+            constructor.setAccessible(true);
+            return constructor.newInstance(-1, GLFW.glfwCreateStandardCursor(GLFW.GLFW_HRESIZE_CURSOR));
+        } catch (ReflectiveOperationException e) {
+            return PointerIcon.getSystemIcon(PointerIcon.TYPE_ARROW);
+        }
+    }
+
+    private static final class ResizeBoundaryView extends View {
+        private ResizeBoundaryView(Context context) {
+            super(context);
+        }
+
+        @Override
+        public PointerIcon onResolvePointerIcon(MotionEvent event) {
+            return VERTICAL_RESIZE_CURSOR;
+        }
+    }
+
+    private static final class HorizontalResizeView extends View {
+        private HorizontalResizeView(Context context) {
+            super(context);
+        }
+
+        @Override
+        public PointerIcon onResolvePointerIcon(MotionEvent event) {
+            return HORIZONTAL_RESIZE_CURSOR;
         }
     }
 }

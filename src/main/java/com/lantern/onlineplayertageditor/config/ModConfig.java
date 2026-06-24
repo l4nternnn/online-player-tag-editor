@@ -12,6 +12,7 @@ public class ModConfig {
     public String escButtonText = "Tag 管理";
     public List<String> presetTags = new ArrayList<>();
     public Map<String, String> tagDisplayNames = new HashMap<>();
+    public Map<String, String> tagCategories = new HashMap<>();
     public boolean dangerousConfirm = true;
 
     public static ModConfig createDefault() {
@@ -87,5 +88,9 @@ public class ModConfig {
 
     public String getDisplayName(String tag) {
         return tagDisplayNames.getOrDefault(tag, tag);
+    }
+
+    public String getCategoryId(String tag) {
+        return tagCategories.getOrDefault(tag, com.lantern.onlineplayertageditor.network.TagCategory.forTag(tag).id());
     }
 }
