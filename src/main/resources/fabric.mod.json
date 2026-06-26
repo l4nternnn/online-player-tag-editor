@@ -2,7 +2,7 @@
     "schemaVersion": 1,
     "id": "online_player_tag_editor",
     "version": "${version}",
-    "name": "Online Player Tag Editor",
+    "name": "线上玩家标签编辑工具",
     "description": "在线玩家 Tag 管理工具 - 通过 GUI 快速配置原版 Entity Tags。提供 /tageditor 命令和游戏内 GUI，支持一键添加/移除/切换玩家的原版 tags。",
     "authors": [
         "Lantern"
