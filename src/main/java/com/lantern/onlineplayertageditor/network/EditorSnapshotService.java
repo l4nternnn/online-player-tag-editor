@@ -2,6 +2,7 @@ package com.lantern.onlineplayertageditor.network;
 
 import com.lantern.onlineplayertageditor.config.ConfigManager;
 import com.lantern.onlineplayertageditor.config.ModConfig;
+import com.lantern.onlineplayertageditor.scoreboard.MonvhuaHistoryService;
 import com.lantern.onlineplayertageditor.scoreboard.ScoreboardService;
 import com.lantern.onlineplayertageditor.tag.TagService;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -36,6 +37,10 @@ public final class EditorSnapshotService {
         int score = selected != null && objectiveExists
                 ? ScoreboardService.getScore(viewer.getServer(), selected.getGameProfile().getName())
                 : 0;
+        long gameDay = selected != null ? gameDay(selected) : 0L;
+        if (selected != null && objectiveExists) {
+            MonvhuaHistoryService.recordScore(selected.getUuid(), score, gameDay);
+        }
 
         List<String> selectedTags = selected != null ? TagService.getTags(selected) : List.of();
         Set<String> selectedTagSet = Set.copyOf(selectedTags);
@@ -61,6 +66,11 @@ public final class EditorSnapshotService {
         List<EditorSnapshot.ScoreLevelEntry> scoreLevels = ScoreboardService.LEVELS.stream()
                 .map(level -> new EditorSnapshot.ScoreLevelEntry(level.value(), level.displayName()))
                 .toList();
+        List<EditorSnapshot.ScoreHistoryEntry> scoreHistory = selected != null && objectiveExists
+                ? MonvhuaHistoryService.historyFor(selected.getUuid(), gameDay).stream()
+                .map(entry -> new EditorSnapshot.ScoreHistoryEntry(entry.day(), entry.value()))
+                .toList()
+                : List.of();
 
         return new EditorSnapshot(
                 config.guiTitle,
@@ -74,7 +84,8 @@ public final class EditorSnapshotService {
                 presetTags,
                 selectedTags,
                 new HashMap<>(config.tagDisplayNames),
-                scoreLevels
+                scoreLevels,
+                scoreHistory
         );
     }
 
@@ -82,5 +93,9 @@ public final class EditorSnapshotService {
         return ConfigManager.getConfig().presetTags.stream()
                 .filter(tag -> categoryId.equals(ConfigManager.getConfig().getCategoryId(tag)))
                 .toList();
+    }
+
+    private static long gameDay(ServerPlayerEntity player) {
+        return Math.max(0L, player.getWorld().getTimeOfDay() / 24000L);
     }
 }

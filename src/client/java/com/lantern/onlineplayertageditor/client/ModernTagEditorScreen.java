@@ -11,6 +11,8 @@ import icyllis.modernui.animation.ObjectAnimator;
 import icyllis.modernui.animation.ValueAnimator;
 import icyllis.modernui.core.Context;
 import icyllis.modernui.fragment.Fragment;
+import icyllis.modernui.graphics.Canvas;
+import icyllis.modernui.graphics.Paint;
 import icyllis.modernui.graphics.drawable.ColorDrawable;
 import icyllis.modernui.graphics.drawable.Drawable;
 import icyllis.modernui.graphics.drawable.GradientDrawable;
@@ -23,6 +25,7 @@ import icyllis.modernui.text.Editable;
 import icyllis.modernui.text.TextWatcher;
 import icyllis.modernui.util.ColorStateList;
 import icyllis.modernui.view.Gravity;
+import icyllis.modernui.view.KeyEvent;
 import icyllis.modernui.view.LayoutInflater;
 import icyllis.modernui.view.MotionEvent;
 import icyllis.modernui.view.PointerIcon;
@@ -113,9 +116,10 @@ public final class ModernTagEditorScreen {
         private static final int RADIUS_PANEL = 8;
         private static final int RADIUS_CONTROL = 7;
         private static final int SPACE = 10;
-        private static final int MONVHUA_VALUE_SLOT_WIDTH = 150;
-        private static final int MONVHUA_VALUE_SLOT_HEIGHT = 64;
+        private static final int MONVHUA_VALUE_SLOT_WIDTH = 170;
+        private static final int MONVHUA_VALUE_SLOT_HEIGHT = 74;
         private static final int MONVHUA_VALUE_SLIDE = 8;
+        private static final int MONVHUA_CHART_HEIGHT = 600;
         private static final int PLAYER_LIST_AVATAR_SIZE = 32;
         private static final int PLAYER_OVERVIEW_AVATAR_SIZE = 52;
         private static final int PLAYER_AVATAR_PADDING = 3;
@@ -133,6 +137,7 @@ public final class ModernTagEditorScreen {
         private View dragHandle;
         private View dialogOverlay;
         private TextView toastView;
+        private EditText monvhuaInlineInput;
         private Runnable hideToastRunnable;
         private boolean noticeIsError;
         private String noticeMessage = "";
@@ -212,6 +217,7 @@ public final class ModernTagEditorScreen {
             dragHandle = null;
             dialogOverlay = null;
             toastView = null;
+            monvhuaInlineInput = null;
             hideToastRunnable = null;
             displayedMonvhuaPercent = null;
             displayedMonvhuaPlayer = null;
@@ -383,7 +389,7 @@ public final class ModernTagEditorScreen {
 
             TextView label = small(context, "魔女化程度：");
             label.setTextColor(COLOR_TEXT);
-            label.setTextSize(13);
+            label.setTextSize(15);
             row.addView(label, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
             int percent = currentMonvhuaPercent();
@@ -413,6 +419,7 @@ public final class ModernTagEditorScreen {
                 }, 170L);
             }
             row.addView(valueSlot, new LinearLayout.LayoutParams(MONVHUA_VALUE_SLOT_WIDTH, MONVHUA_VALUE_SLOT_HEIGHT));
+            row.addView(monvhuaInlineEditor(context), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             return row;
         }
 
@@ -423,11 +430,80 @@ public final class ModernTagEditorScreen {
         private TextView monvhuaValue(Context context, int percent) {
             TextView value = new TextView(context);
             value.setText(percent >= 0 ? percent + "%" : "--%");
-            value.setTextSize(30);
+            value.setTextSize(42);
             value.setTextColor(percent >= 0 ? monvhuaPercentColor(percent) : COLOR_RED);
             value.setGravity(Gravity.CENTER_VERTICAL);
             value.setPadding(0, 2, 0, 4);
             return value;
+        }
+
+        private View monvhuaInlineEditor(Context context) {
+            LinearLayout editor = new LinearLayout(context);
+            editor.setOrientation(LinearLayout.HORIZONTAL);
+            editor.setGravity(Gravity.CENTER_VERTICAL);
+            editor.setPadding(12, 0, 0, 0);
+
+            monvhuaInlineInput = new EditText(context);
+            monvhuaInlineInput.setHint("0-100");
+            monvhuaInlineInput.setText(snapshot.scoreboardObjectiveExists() ? String.valueOf(clamp(snapshot.selectedScore(), 0, 100)) : "");
+            monvhuaInlineInput.setSingleLine(true);
+            monvhuaInlineInput.setTextSize(15);
+            monvhuaInlineInput.setPadding(10, 8, 10, 8);
+            monvhuaInlineInput.setEnabled(snapshot.scoreboardObjectiveExists() && snapshot.selectedPlayerUuid() != null);
+            monvhuaInlineInput.setOnKeyListener((view, keyCode, event) -> {
+                if (event.getAction() == KeyEvent.ACTION_UP
+                        && (keyCode == KeyEvent.KEY_ENTER || keyCode == KeyEvent.KEY_KP_ENTER)) {
+                    applyMonvhuaInput();
+                    return true;
+                }
+                return false;
+            });
+            applyHoverBackground(monvhuaInlineInput, COLOR_PANEL_SOFT, COLOR_PANEL_HOVER, COLOR_BORDER, COLOR_BORDER_ACTIVE);
+            editor.addView(monvhuaInlineInput, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            Button apply = actionButton(context, "应用", COLOR_GREEN, true);
+            apply.setOnClickListener(v -> applyMonvhuaInput());
+            editor.addView(apply, actionButtonParams(76, 8));
+
+            Button cancel = actionButton(context, "取消", COLOR_MUTED, false);
+            cancel.setOnClickListener(v -> resetMonvhuaInput());
+            editor.addView(cancel, actionButtonParams(76, 8));
+            return editor;
+        }
+
+        private void applyMonvhuaInput() {
+            if (snapshot.selectedPlayerUuid() == null) {
+                setNotice("请先选择在线玩家", true);
+                return;
+            }
+            if (!snapshot.scoreboardObjectiveExists()) {
+                setNotice("objective monvhua 不存在", true);
+                return;
+            }
+            if (monvhuaInlineInput == null) {
+                return;
+            }
+
+            String raw = monvhuaInlineInput.getText().toString().trim();
+            int value;
+            try {
+                value = Integer.parseInt(raw);
+            } catch (NumberFormatException e) {
+                setNotice("魔女化值必须是 0-100 的整数", true);
+                return;
+            }
+            if (value < 0 || value > 100) {
+                setNotice("魔女化值必须在 0-100 之间", true);
+                return;
+            }
+
+            send(new EditorPayloads.SetMonvhuaScoreC2S(snapshot.selectedPlayerUuid(), value));
+        }
+
+        private void resetMonvhuaInput() {
+            if (monvhuaInlineInput != null) {
+                monvhuaInlineInput.setText(snapshot.scoreboardObjectiveExists() ? String.valueOf(clamp(snapshot.selectedScore(), 0, 100)) : "");
+            }
         }
 
         private FrameLayout.LayoutParams monvhuaValueParams(int topOffset) {
@@ -507,6 +583,7 @@ public final class ModernTagEditorScreen {
             addCurrentTagColumn(context, columns, TagCategory.CHARACTER, "角色");
             addCurrentTagColumn(context, columns, TagCategory.MAGIC, "魔法");
             addCurrentTagColumn(context, columns, TagCategory.IDENTITY, "身份");
+            addCurrentTagColumn(context, columns, TagCategory.OTHER, "其他");
             currentTagsPanel.addView(columns, fullWidthWrapWithMargins(0, SPACE, 0, 0));
         }
 
@@ -544,6 +621,7 @@ public final class ModernTagEditorScreen {
             tabsLayout.addView(tabButton(context, TagCategory.CHARACTER.id(), "角色", animateSelected), equalWidthWrap());
             tabsLayout.addView(tabButton(context, TagCategory.MAGIC.id(), "魔法", animateSelected), equalWidthWrap());
             tabsLayout.addView(tabButton(context, TagCategory.IDENTITY.id(), "身份", animateSelected), equalWidthWrap());
+            tabsLayout.addView(tabButton(context, TagCategory.OTHER.id(), "其他", animateSelected), equalWidthWrap());
             tabsLayout.addView(tabButton(context, "monvhua", "魔女化程度", animateSelected), equalWidthWrap());
         }
 
@@ -663,7 +741,7 @@ public final class ModernTagEditorScreen {
         }
 
         private void rebuildScoreEditor(Context context) {
-            editorPanel.addView(sectionHeader(context, "魔女化程度编辑", snapshot.scoreboardObjectiveExists() ? snapshot.selectedStageName() : "objective 缺失"), fullWidthWrap());
+            editorPanel.addView(sectionHeader(context, "魔女化值趋势", "最近 7 个游戏日"), fullWidthWrap());
             if (!snapshot.scoreboardObjectiveExists()) {
                 TextView warning = body(context, "objective monvhua 不存在，请先在服务端创建。");
                 warning.setTextColor(COLOR_RED);
@@ -672,9 +750,12 @@ public final class ModernTagEditorScreen {
                 editorPanel.addView(warning, fullWidthWrapWithMargins(0, SPACE, 0, 0));
                 return;
             }
+            editorPanel.addView(monvhuaHistoryChart(context), fullWidthFixedHeightWithMargins(MONVHUA_CHART_HEIGHT, 0, SPACE, 0, SPACE));
+            editorPanel.addView(sectionHeader(context, "阶段参考", "点击可一键切换"), fullWidthWrapWithMargins(0, 0, 0, SPACE));
+            EditorSnapshot.ScoreLevelEntry currentLevel = currentScoreLevel();
             for (EditorSnapshot.ScoreLevelEntry level : snapshot.scoreLevels()) {
-                boolean current = level.value() == snapshot.selectedScore();
-                Button scoreButton = scoreButton(context, level, current);
+                boolean current = currentLevel != null && level.value() == currentLevel.value();
+                Button scoreButton = scoreReferenceButton(context, level, current);
                 scoreButton.setOnClickListener(v -> {
                     if (snapshot.selectedPlayerUuid() != null) {
                         pulse(v);
@@ -683,6 +764,22 @@ public final class ModernTagEditorScreen {
                 });
                 editorPanel.addView(scoreButton, fullWidthWrapWithMargins(0, 0, 0, 8));
             }
+        }
+
+        private EditorSnapshot.ScoreLevelEntry currentScoreLevel() {
+            EditorSnapshot.ScoreLevelEntry current = null;
+            for (EditorSnapshot.ScoreLevelEntry level : snapshot.scoreLevels()) {
+                if (level.value() <= snapshot.selectedScore()) {
+                    current = level;
+                } else {
+                    break;
+                }
+            }
+            return current;
+        }
+
+        private View monvhuaHistoryChart(Context context) {
+            return new MonvhuaHistoryChartPanel(context, snapshot.scoreHistory());
         }
 
         private View playerButton(Context context, EditorSnapshot.PlayerEntry player, boolean selected) {
@@ -728,8 +825,8 @@ public final class ModernTagEditorScreen {
             return button;
         }
 
-        private Button scoreButton(Context context, EditorSnapshot.ScoreLevelEntry level, boolean current) {
-            Button button = flatButton(context, (current ? "当前  " : "") + level.value() + " · " + level.displayName(), current ? COLOR_GREEN : COLOR_TEXT);
+        private Button scoreReferenceButton(Context context, EditorSnapshot.ScoreLevelEntry level, boolean current) {
+            Button button = flatButton(context, (current ? "当前 · " : "") + level.value() + " · " + level.displayName(), current ? COLOR_GREEN : COLOR_TEXT);
             button.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
             applyHoverBackground(button, current ? 0x2266D99B : COLOR_PANEL_SOFT,
                     current ? 0x3366D99B : COLOR_PANEL_HOVER,
@@ -1292,6 +1389,12 @@ public final class ModernTagEditorScreen {
             return params;
         }
 
+        private LinearLayout.LayoutParams fullWidthFixedHeightWithMargins(int height, int left, int top, int right, int bottom) {
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height);
+            params.setMargins(left, top, right, bottom);
+            return params;
+        }
+
         private LinearLayout.LayoutParams equalWidthWrap() {
             return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
         }
@@ -1355,6 +1458,400 @@ public final class ModernTagEditorScreen {
         return (value << 24) | (rgb & 0x00FFFFFF);
     }
 
+    private static final class MonvhuaHistoryChartPanel extends FrameLayout {
+        private static final int VALUE_LABEL_WIDTH = 52;
+        private static final int DAY_LABEL_WIDTH = 72;
+        private static final int LABEL_HEIGHT = 22;
+        private static final int CHART_HEIGHT = 600;
+        private static final int CHART_RADIUS = 7;
+        private static final int CHART_MUTED = 0xFF93A0AE;
+
+        private final List<EditorSnapshot.ScoreHistoryEntry> history;
+        private final MonvhuaHistoryChartView chartView;
+        private final TextView topAxisLabel;
+        private final TextView bottomAxisLabel;
+        private final TextView emptyLabel;
+        private final List<TextView> valueLabels = new ArrayList<>();
+        private final List<TextView> dayLabels = new ArrayList<>();
+
+        private MonvhuaHistoryChartPanel(Context context, List<EditorSnapshot.ScoreHistoryEntry> history) {
+            super(context);
+            this.history = history == null ? List.of() : List.copyOf(history);
+            setPadding(8, 8, 8, 8);
+            setMinimumHeight(CHART_HEIGHT);
+            setBackground(chartBackground(0x44182029, 0x33425263, CHART_RADIUS));
+
+            chartView = new MonvhuaHistoryChartView(context, this.history);
+            addView(chartView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+            topAxisLabel = chartLabel(context, "100", CHART_MUTED, 15);
+            bottomAxisLabel = chartLabel(context, "0", CHART_MUTED, 15);
+            addView(topAxisLabel, labelParams(VALUE_LABEL_WIDTH, LABEL_HEIGHT));
+            addView(bottomAxisLabel, labelParams(VALUE_LABEL_WIDTH, LABEL_HEIGHT));
+
+            emptyLabel = chartLabel(context, "暂无历史记录", CHART_MUTED, 15);
+            emptyLabel.setVisibility(this.history.isEmpty() ? View.VISIBLE : View.GONE);
+            addView(emptyLabel, labelParams(140, LABEL_HEIGHT));
+
+            for (EditorSnapshot.ScoreHistoryEntry entry : this.history) {
+                int value = clampChartValue(entry.value());
+                TextView valueLabel = chartLabel(context, value + "%", 0xFFD8F7FF, 14);
+                TextView dayLabel = chartLabel(context, gameDayLabel(entry.day()), CHART_MUTED, 14);
+                valueLabels.add(valueLabel);
+                dayLabels.add(dayLabel);
+                addView(valueLabel, labelParams(VALUE_LABEL_WIDTH, LABEL_HEIGHT));
+                addView(dayLabel, labelParams(DAY_LABEL_WIDTH, LABEL_HEIGHT));
+            }
+        }
+
+        @Override
+        protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+            int width = right - left;
+            int height = bottom - top;
+            int contentLeft = getPaddingLeft();
+            int contentTop = getPaddingTop();
+            int contentRight = Math.max(contentLeft, width - getPaddingRight());
+            int contentBottom = Math.max(contentTop, height - getPaddingBottom());
+
+            chartView.layout(contentLeft, contentTop, contentRight, contentBottom);
+
+            ChartGeometry geometry = chartGeometry(contentRight - contentLeft, contentBottom - contentTop);
+            layoutLabel(topAxisLabel, contentLeft + Math.round(geometry.left()) - VALUE_LABEL_WIDTH, contentTop + Math.round(geometry.top()) - 10,
+                    VALUE_LABEL_WIDTH, LABEL_HEIGHT);
+            layoutLabel(bottomAxisLabel, contentLeft + Math.round(geometry.left()) - VALUE_LABEL_WIDTH, contentTop + Math.round(geometry.bottom()) - 10,
+                    VALUE_LABEL_WIDTH, LABEL_HEIGHT);
+            layoutLabel(emptyLabel, contentLeft + (contentRight - contentLeft - 140) / 2, contentTop + (contentBottom - contentTop - LABEL_HEIGHT) / 2,
+                    140, LABEL_HEIGHT);
+
+            int count = history.size();
+            for (int i = 0; i < count; i++) {
+                EditorSnapshot.ScoreHistoryEntry entry = history.get(i);
+                float x = dataX(geometry, i, count);
+                float y = dataY(geometry, clampChartValue(entry.value()));
+                int labelY = Math.round(y < geometry.top() + 24.0f ? y + 12.0f : y - 24.0f);
+                layoutLabel(valueLabels.get(i), contentLeft + Math.round(x) - VALUE_LABEL_WIDTH / 2, contentTop + labelY,
+                        VALUE_LABEL_WIDTH, LABEL_HEIGHT);
+                layoutLabel(dayLabels.get(i), contentLeft + Math.round(x) - DAY_LABEL_WIDTH / 2, contentTop + Math.round(geometry.bottom()) + 12,
+                        DAY_LABEL_WIDTH, LABEL_HEIGHT);
+            }
+        }
+
+        private static TextView chartLabel(Context context, String text, int color, int textSize) {
+            TextView label = new TextView(context);
+            label.setText(text);
+            label.setTextColor(color);
+            label.setTextSize(textSize);
+            label.setGravity(Gravity.CENTER);
+            label.setIncludeFontPadding(false);
+            label.setEnabled(false);
+            label.setClickable(false);
+            return label;
+        }
+
+        private static FrameLayout.LayoutParams labelParams(int width, int height) {
+            return new FrameLayout.LayoutParams(width, height);
+        }
+
+        private static void layoutLabel(View label, int left, int top, int width, int height) {
+            label.layout(left, top, left + width, top + height);
+        }
+
+        private static Drawable chartBackground(int fill, int stroke, int radius) {
+            GradientDrawable drawable = new GradientDrawable();
+            drawable.setColor(fill);
+            drawable.setStroke(1, stroke);
+            drawable.setCornerRadius(radius);
+            return drawable;
+        }
+    }
+
+    private static final class MonvhuaHistoryChartView extends View {
+        private final List<EditorSnapshot.ScoreHistoryEntry> history;
+        private final Paint backgroundPaint = new Paint();
+        private final Paint gridPaint = new Paint();
+        private final Paint axisPaint = new Paint();
+        private final Paint linePaint = new Paint();
+        private final Paint pointPaint = new Paint();
+        private final Paint pointCorePaint = new Paint();
+
+        private MonvhuaHistoryChartView(Context context, List<EditorSnapshot.ScoreHistoryEntry> history) {
+            super(context);
+            this.history = history == null ? List.of() : List.copyOf(history);
+            setWillNotDraw(false);
+
+            backgroundPaint.setColor(0xFF121922);
+            backgroundPaint.setStyle(Paint.Style.FILL);
+
+            gridPaint.setColor(0x66425263);
+            gridPaint.setAntiAlias(true);
+            gridPaint.setStyle(Paint.Style.STROKE);
+            gridPaint.setStrokeWidth(1.2f);
+
+            axisPaint.setColor(0xFF66D99B);
+            axisPaint.setAntiAlias(true);
+            axisPaint.setStyle(Paint.Style.STROKE);
+            axisPaint.setStrokeWidth(2.0f);
+            axisPaint.setStrokeCap(Paint.Cap.ROUND);
+
+            linePaint.setColor(0xFF78D7FF);
+            linePaint.setAntiAlias(true);
+            linePaint.setStyle(Paint.Style.STROKE);
+            linePaint.setStrokeWidth(2.0f);
+            linePaint.setStrokeCap(Paint.Cap.ROUND);
+            linePaint.setStrokeJoin(Paint.Join.ROUND);
+
+            pointPaint.setColor(0xFF66D99B);
+            pointPaint.setAntiAlias(true);
+            pointPaint.setStyle(Paint.Style.FILL);
+
+            pointCorePaint.setColor(0xFFD9FFF0);
+            pointCorePaint.setAntiAlias(true);
+            pointCorePaint.setStyle(Paint.Style.FILL);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            int width = Math.max(1, getWidth());
+            int height = Math.max(1, getHeight());
+            ChartGeometry geometry = chartGeometry(width, height);
+
+            canvas.drawRect(0.0f, 0.0f, width, height, backgroundPaint);
+            for (int i = 0; i <= 4; i++) {
+                float y = geometry.top() + geometry.plotHeight() * (i / 4.0f);
+                canvas.drawLine(geometry.left(), y, geometry.right(), y, gridPaint);
+            }
+            canvas.drawLine(geometry.left(), geometry.top(), geometry.left(), geometry.bottom(), axisPaint);
+            canvas.drawLine(geometry.left(), geometry.bottom(), geometry.right(), geometry.bottom(), axisPaint);
+
+            if (history.isEmpty()) {
+                return;
+            }
+
+            int count = history.size();
+            float previousX = 0.0f;
+            float previousY = 0.0f;
+            for (int i = 0; i < count; i++) {
+                EditorSnapshot.ScoreHistoryEntry entry = history.get(i);
+                float x = dataX(geometry, i, count);
+                float y = dataY(geometry, clampChartValue(entry.value()));
+                if (i > 0) {
+                    canvas.drawLine(previousX, previousY, x, y, linePaint);
+                }
+                canvas.drawCircle(x, y, 4.4f, pointPaint);
+                canvas.drawCircle(x, y, 2.0f, pointCorePaint);
+                previousX = x;
+                previousY = y;
+            }
+        }
+    }
+
+    private record ChartGeometry(float left, float top, float right, float bottom) {
+        private float plotWidth() {
+            return Math.max(1.0f, right - left);
+        }
+
+        private float plotHeight() {
+            return Math.max(1.0f, bottom - top);
+        }
+    }
+
+    private static ChartGeometry chartGeometry(int width, int height) {
+        float left = 58.0f;
+        float top = 42.0f;
+        float right = Math.max(left + 24.0f, width - 22.0f);
+        float bottom = Math.max(top + 24.0f, height - 64.0f);
+        return new ChartGeometry(left, top, right, bottom);
+    }
+
+    private static float dataX(ChartGeometry geometry, int index, int count) {
+        return count == 1
+                ? geometry.left() + geometry.plotWidth() / 2.0f
+                : geometry.left() + geometry.plotWidth() * (index / (float) (count - 1));
+    }
+
+    private static float dataY(ChartGeometry geometry, int value) {
+        return geometry.top() + (100 - clampChartValue(value)) * (geometry.plotHeight() / 100.0f);
+    }
+
+    private static int clampChartValue(int value) {
+        return Math.max(0, Math.min(100, value));
+    }
+
+    private static String gameDayLabel(String day) {
+        if (day == null || day.isBlank()) {
+            return "";
+        }
+        try {
+            long gameDay = Long.parseLong(day);
+            return "第" + gameDay + "天";
+        } catch (NumberFormatException ignored) {
+            return "";
+        }
+    }
+
+    private static final class MonvhuaHistoryChartSurface extends MinecraftSurfaceView {
+        private final List<EditorSnapshot.ScoreHistoryEntry> history;
+        private int surfaceWidth;
+        private int surfaceHeight;
+
+        private MonvhuaHistoryChartSurface(Context context, List<EditorSnapshot.ScoreHistoryEntry> history) {
+            super(context);
+            this.history = history == null ? List.of() : List.copyOf(history);
+            setRenderer(new Renderer() {
+                @Override
+                public void onSurfaceChanged(int width, int height) {
+                    surfaceWidth = width;
+                    surfaceHeight = height;
+                }
+
+                @Override
+                public void onDraw(DrawContext context, int mouseX, int mouseY, float deltaTick, double guiScale, float alpha) {
+                    int width = Math.max(1, (int) Math.floor(surfaceWidth / Math.max(1.0d, guiScale)));
+                    int height = Math.max(1, (int) Math.floor(surfaceHeight / Math.max(1.0d, guiScale)));
+                    context.fill(0, 0, width, height, alphaColor(alpha, 0x121922));
+
+                    int left = 34;
+                    int top = 16;
+                    int right = Math.max(left + 20, width - 10);
+                    int bottom = Math.max(top + 20, height - 28);
+                    int plotWidth = Math.max(1, right - left);
+                    int plotHeight = Math.max(1, bottom - top);
+
+                    for (int i = 0; i <= 4; i++) {
+                        int y = top + Math.round(plotHeight * (i / 4.0f));
+                        context.fill(left, y, right, y + 1, alphaColor(alpha, 0x33425263));
+                    }
+                    context.fill(left, top, left + 1, bottom, alphaColor(alpha, 0x5566D99B));
+                    context.fill(left, bottom, right, bottom + 1, alphaColor(alpha, 0x5566D99B));
+
+                    if (history.isEmpty()) {
+                        context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer,
+                                "暂无历史记录", width / 2, Math.max(0, height / 2 - 4), alphaColor(alpha, 0x93A0AE));
+                        return;
+                    }
+
+                    int previousX = -1;
+                    int previousY = -1;
+                    int count = history.size();
+                    for (int i = 0; i < count; i++) {
+                        EditorSnapshot.ScoreHistoryEntry entry = history.get(i);
+                        int x = count == 1 ? left + plotWidth / 2 : left + Math.round(plotWidth * (i / (float) (count - 1)));
+                        int value = clampChartValue(entry.value());
+                        int y = top + Math.round((100 - value) * (plotHeight / 100.0f));
+
+                        if (previousX >= 0) {
+                            drawAntiAliasedLine(context, previousX, previousY, x, y, alpha, 0x78D7FF);
+                        }
+                        context.fill(x - 2, y - 2, x + 3, y + 3, alphaColor(alpha, 0x66D99B));
+                        context.fill(x - 1, y - 1, x + 2, y + 2, alphaColor(alpha, 0xD9FFF0));
+
+                        int valueLabelY = y < top + 18 ? y + 10 : y - 16;
+                        context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer,
+                                value + "%", x, valueLabelY, alphaColor(alpha, 0xD8F7FF));
+
+                        String label = gameDayLabel(entry.day());
+                        context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer,
+                                label, x, bottom + 7, alphaColor(alpha, 0x93A0AE));
+
+                        previousX = x;
+                        previousY = y;
+                    }
+
+                    context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, "100", 4, top - 4, alphaColor(alpha, 0x93A0AE));
+                    context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, "0", 18, bottom - 6, alphaColor(alpha, 0x93A0AE));
+                }
+            });
+        }
+
+        private static void drawAntiAliasedLine(DrawContext context, int startX, int startY, int endX, int endY, float alpha, int rgb) {
+            if (startX == endX && startY == endY) {
+                plotLinePixel(context, false, startX, startY, alpha, rgb);
+                return;
+            }
+
+            boolean steep = Math.abs(endY - startY) > Math.abs(endX - startX);
+            if (steep) {
+                int oldStartX = startX;
+                startX = startY;
+                startY = oldStartX;
+                int oldEndX = endX;
+                endX = endY;
+                endY = oldEndX;
+            }
+
+            if (startX > endX) {
+                int oldStartX = startX;
+                int oldStartY = startY;
+                startX = endX;
+                startY = endY;
+                endX = oldStartX;
+                endY = oldStartY;
+            }
+
+            int dx = endX - startX;
+            int dy = endY - startY;
+            double gradient = dx == 0 ? 1.0d : dy / (double) dx;
+
+            double firstY = startY;
+            int firstPixelY = integerPart(firstY);
+            plotLinePixel(context, steep, startX, firstPixelY, alpha * reverseFractionalPart(firstY), rgb);
+            plotLinePixel(context, steep, startX, firstPixelY + 1, alpha * fractionalPart(firstY), rgb);
+
+            double y = startY + gradient;
+            for (int x = startX + 1; x < endX; x++) {
+                int pixelY = integerPart(y);
+                plotLinePixel(context, steep, x, pixelY, alpha * reverseFractionalPart(y), rgb);
+                plotLinePixel(context, steep, x, pixelY + 1, alpha * fractionalPart(y), rgb);
+                y += gradient;
+            }
+
+            double lastY = endY;
+            int lastPixelY = integerPart(lastY);
+            plotLinePixel(context, steep, endX, lastPixelY, alpha * reverseFractionalPart(lastY), rgb);
+            plotLinePixel(context, steep, endX, lastPixelY + 1, alpha * fractionalPart(lastY), rgb);
+        }
+
+        private static void plotLinePixel(DrawContext context, boolean steep, int x, int y, float coverage, int rgb) {
+            if (coverage <= 0.0f) {
+                return;
+            }
+            int color = alphaColor(Math.min(1.0f, coverage), rgb);
+            if (steep) {
+                context.fill(y, x, y + 1, x + 1, color);
+            } else {
+                context.fill(x, y, x + 1, y + 1, color);
+            }
+        }
+
+        private static int integerPart(double value) {
+            return (int) Math.floor(value);
+        }
+
+        private static float fractionalPart(double value) {
+            return (float) (value - Math.floor(value));
+        }
+
+        private static float reverseFractionalPart(double value) {
+            return 1.0f - fractionalPart(value);
+        }
+
+        private static int clampChartValue(int value) {
+            return Math.max(0, Math.min(100, value));
+        }
+
+        private static String gameDayLabel(String day) {
+            if (day == null || day.isBlank()) {
+                return "";
+            }
+            try {
+                long gameDay = Long.parseLong(day);
+                return "第" + gameDay + "天";
+            } catch (NumberFormatException ignored) {
+                return "";
+            }
+        }
+    }
+
     private static final class PlayerAvatarSurface extends MinecraftSurfaceView {
         private final UUID uuid;
         private int surfaceWidth;
@@ -1372,15 +1869,19 @@ public final class ModernTagEditorScreen {
 
                 @Override
                 public void onDraw(DrawContext context, int mouseX, int mouseY, float deltaTick, double guiScale, float alpha) {
-                    int drawSize = Math.max(1, (int) Math.floor(Math.min(surfaceWidth, surfaceHeight) / Math.max(1.0d, guiScale)));
-                    context.fill(0, 0, drawSize, drawSize, alphaColor(alpha, 0x17212B));
+                    int viewWidth = Math.max(1, (int) Math.floor(surfaceWidth / Math.max(1.0d, guiScale)));
+                    int viewHeight = Math.max(1, (int) Math.floor(surfaceHeight / Math.max(1.0d, guiScale)));
+                    int drawSize = Math.max(1, Math.min(viewWidth, viewHeight));
+                    int drawX = Math.max(0, (viewWidth - drawSize) / 2);
+                    int drawY = Math.max(0, (viewHeight - drawSize) / 2);
+                    context.fill(drawX, drawY, drawX + drawSize, drawY + drawSize, alphaColor(alpha, 0x17212B));
                     SkinTextures skin = skinTextures(uuid);
                     if (skin != null) {
-                        PlayerSkinDrawer.draw(context, skin, 0, 0, drawSize, alphaColor(alpha, 0xFFFFFF));
+                        PlayerSkinDrawer.draw(context, skin, drawX, drawY, drawSize, alphaColor(alpha, 0xFFFFFF));
                     } else {
                         int color = alphaColor(alpha, 0x93A0AE);
                         context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer,
-                                "?", drawSize / 2, Math.max(0, (drawSize - 8) / 2), color);
+                                "?", drawX + drawSize / 2, drawY + Math.max(0, (drawSize - 8) / 2), color);
                     }
                 }
             });
