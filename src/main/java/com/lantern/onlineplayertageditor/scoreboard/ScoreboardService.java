@@ -48,16 +48,19 @@ public class ScoreboardService {
     }
 
     public static String getStageName(int score) {
-        for (MonvhuaLevel level : LEVELS) {
-            if (level.value() == score) return level.displayName();
-        }
-        return "非预设值";
+        MonvhuaLevel level = getLevel(score);
+        return level == null ? "非预设值" : level.displayName();
     }
 
     public static MonvhuaLevel getLevel(int score) {
+        MonvhuaLevel current = null;
         for (MonvhuaLevel level : LEVELS) {
-            if (level.value() == score) return level;
+            if (level.value() <= score) {
+                current = level;
+            } else {
+                break;
+            }
         }
-        return null;
+        return current;
     }
 }

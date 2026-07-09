@@ -14,7 +14,10 @@ public enum TagCategory {
             "LiquidControl", "Swap", "Vision", "Sandevistan", "Perception",
             "Intervention", "Through", "MindReading"
     )),
-    IDENTITY("identity", "身份 Tags", Set.of());
+    IDENTITY("identity", "身份 Tags", Set.of(
+            "GrandWitch", "muhou", "player", "master", "guard", "MonvhuaFull"
+    )),
+    OTHER("other", "其他 Tags", Set.of());
 
     private final String id;
     private final String displayName;
@@ -40,7 +43,7 @@ public enum TagCategory {
                 return category;
             }
         }
-        return IDENTITY;
+        return OTHER;
     }
 
     public static TagCategory forTag(String tag) {
@@ -50,6 +53,9 @@ public enum TagCategory {
         if (MAGIC.fixedTags.contains(tag)) {
             return MAGIC;
         }
-        return IDENTITY;
+        if (IDENTITY.fixedTags.contains(tag)) {
+            return IDENTITY;
+        }
+        return OTHER;
     }
 }

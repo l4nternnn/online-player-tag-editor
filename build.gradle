@@ -50,6 +50,19 @@ dependencies {
 	
 }
 
+tasks.register('historyLogicTest', JavaExec) {
+	group = 'verification'
+	description = 'Runs dependency-free monvhua history logic checks.'
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.lantern.onlineplayertageditor.scoreboard.MonvhuaHistoryTest'
+}
+
+tasks.named('test') {
+	failOnNoDiscoveredTests = false
+}
+
+check.dependsOn tasks.named('historyLogicTest')
+
 processResources {
 	def version = project.version
 	inputs.property "version", version

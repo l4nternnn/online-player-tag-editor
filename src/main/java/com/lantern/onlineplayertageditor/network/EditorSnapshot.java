@@ -16,7 +16,8 @@ public record EditorSnapshot(
         List<TagEntry> presetTags,
         List<String> selectedTags,
         Map<String, String> tagDisplayNames,
-        List<ScoreLevelEntry> scoreLevels
+        List<ScoreLevelEntry> scoreLevels,
+        List<ScoreHistoryEntry> scoreHistory
 ) {
     public record PlayerEntry(UUID uuid, String name, int tagCount) {
     }
@@ -25,5 +26,8 @@ public record EditorSnapshot(
     }
 
     public record ScoreLevelEntry(int value, String displayName) {
+    }
+
+    public record ScoreHistoryEntry(String day, int value) {
     }
 }
