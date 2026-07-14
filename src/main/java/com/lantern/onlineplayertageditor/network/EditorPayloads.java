@@ -71,6 +71,34 @@ public final class EditorPayloads {
         }
     }
 
+    public record AddPlayerTagC2S(UUID targetPlayerUuid, String tag) implements CustomPayload {
+        public static final Id<AddPlayerTagC2S> ID = new Id<>(id("add_player_tag"));
+        public static final PacketCodec<RegistryByteBuf, AddPlayerTagC2S> CODEC = uuidStringCodec(
+                AddPlayerTagC2S::new,
+                AddPlayerTagC2S::targetPlayerUuid,
+                AddPlayerTagC2S::tag
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    public record RemovePlayerTagC2S(UUID targetPlayerUuid, String tag) implements CustomPayload {
+        public static final Id<RemovePlayerTagC2S> ID = new Id<>(id("remove_player_tag"));
+        public static final PacketCodec<RegistryByteBuf, RemovePlayerTagC2S> CODEC = uuidStringCodec(
+                RemovePlayerTagC2S::new,
+                RemovePlayerTagC2S::targetPlayerUuid,
+                RemovePlayerTagC2S::tag
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
     public record AddPresetTagC2S(UUID selectedPlayerUuid, String categoryId, String displayName, String tag) implements CustomPayload {
         public static final Id<AddPresetTagC2S> ID = new Id<>(id("add_preset_tag"));
         public static final PacketCodec<RegistryByteBuf, AddPresetTagC2S> CODEC = PacketCodec.ofStatic(

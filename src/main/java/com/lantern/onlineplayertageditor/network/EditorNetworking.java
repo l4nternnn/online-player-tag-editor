@@ -26,6 +26,8 @@ public final class EditorNetworking {
         PayloadTypeRegistry.playS2C().register(EditorPayloads.EditorNoticeS2C.ID, EditorPayloads.EditorNoticeS2C.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.RefreshEditorC2S.ID, EditorPayloads.RefreshEditorC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.ToggleTagC2S.ID, EditorPayloads.ToggleTagC2S.CODEC);
+        PayloadTypeRegistry.playC2S().register(EditorPayloads.AddPlayerTagC2S.ID, EditorPayloads.AddPlayerTagC2S.CODEC);
+        PayloadTypeRegistry.playC2S().register(EditorPayloads.RemovePlayerTagC2S.ID, EditorPayloads.RemovePlayerTagC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.AddPresetTagC2S.ID, EditorPayloads.AddPresetTagC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.RemovePresetTagC2S.ID, EditorPayloads.RemovePresetTagC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.ClearPresetTagsC2S.ID, EditorPayloads.ClearPresetTagsC2S.CODEC);
@@ -38,6 +40,12 @@ public final class EditorNetworking {
 
         ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.ToggleTagC2S.ID,
                 (payload, context) -> toggleTag(context.player(), payload.targetPlayerUuid(), payload.tag()));
+
+        ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.AddPlayerTagC2S.ID,
+                (payload, context) -> addPlayerTag(context.player(), payload.targetPlayerUuid(), payload.tag()));
+
+        ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.RemovePlayerTagC2S.ID,
+                (payload, context) -> removePlayerTag(context.player(), payload.targetPlayerUuid(), payload.tag()));
 
         ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.AddPresetTagC2S.ID,
                 (payload, context) -> addPresetTag(context.player(), payload.selectedPlayerUuid(), payload.categoryId(), payload.displayName(), payload.tag()));
@@ -87,6 +95,56 @@ public final class EditorNetworking {
         boolean added = TagService.toggleTag(target, tag);
         String message = added ? "已添加 tag: " + tag : "已移除 tag: " + tag;
         sendNotice(viewer, message, false);
+        sendSnapshot(viewer, targetUuid);
+    }
+
+    private static void addPlayerTag(ServerPlayerEntity viewer, UUID targetUuid, String tag) {
+        if (!PermissionUtil.canEditTags(viewer)) {
+            sendNotice(viewer, "你没有权限编辑 Tags", true);
+            return;
+        }
+
+        ServerPlayerEntity target = getOnlineTarget(viewer, targetUuid);
+        if (target == null) {
+            sendNotice(viewer, "目标玩家已离线", true);
+            sendSnapshot(viewer, targetUuid);
+            return;
+        }
+
+        String error = TagService.validate(tag);
+        if (error != null) {
+            sendNotice(viewer, error, true);
+            sendSnapshot(viewer, targetUuid);
+            return;
+        }
+
+        boolean added = TagService.addTag(target, tag);
+        sendNotice(viewer, added ? "已添加 tag: " + tag : "玩家已拥有 tag: " + tag, !added);
+        sendSnapshot(viewer, targetUuid);
+    }
+
+    private static void removePlayerTag(ServerPlayerEntity viewer, UUID targetUuid, String tag) {
+        if (!PermissionUtil.canEditTags(viewer)) {
+            sendNotice(viewer, "你没有权限编辑 Tags", true);
+            return;
+        }
+
+        ServerPlayerEntity target = getOnlineTarget(viewer, targetUuid);
+        if (target == null) {
+            sendNotice(viewer, "目标玩家已离线", true);
+            sendSnapshot(viewer, targetUuid);
+            return;
+        }
+
+        String error = TagService.validate(tag);
+        if (error != null) {
+            sendNotice(viewer, error, true);
+            sendSnapshot(viewer, targetUuid);
+            return;
+        }
+
+        boolean removed = TagService.removeTag(target, tag);
+        sendNotice(viewer, removed ? "已移除 tag: " + tag : "玩家没有 tag: " + tag, !removed);
         sendSnapshot(viewer, targetUuid);
     }
 

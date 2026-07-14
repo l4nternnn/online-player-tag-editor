@@ -142,6 +142,8 @@ public final class ModernTagEditorScreen {
         private boolean noticeIsError;
         private String noticeMessage = "";
         private boolean tagDeleteMode;
+        private boolean currentTagDeleteMode;
+        private String pendingCurrentTagDeleteConfirm;
         private int editorSwitchVersion;
         private Integer displayedMonvhuaPercent;
         private UUID displayedMonvhuaPlayer;
@@ -221,6 +223,7 @@ public final class ModernTagEditorScreen {
             hideToastRunnable = null;
             displayedMonvhuaPercent = null;
             displayedMonvhuaPlayer = null;
+            pendingCurrentTagDeleteConfirm = null;
         }
 
         private View buildPlayersColumn(Context context) {
@@ -585,6 +588,8 @@ public final class ModernTagEditorScreen {
             addCurrentTagColumn(context, columns, TagCategory.IDENTITY, "身份");
             addCurrentTagColumn(context, columns, TagCategory.OTHER, "其他");
             currentTagsPanel.addView(columns, fullWidthWrapWithMargins(0, SPACE, 0, 0));
+            currentTagsPanel.addView(new View(context), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f));
+            currentTagsPanel.addView(currentTagActions(context), fullWidthWrapWithMargins(0, SPACE, 0, 0));
         }
 
         private void addCurrentTagColumn(Context context, LinearLayout columns, TagCategory category, String title) {
@@ -596,11 +601,49 @@ public final class ModernTagEditorScreen {
                 column.addView(emptyState(context, "无"), fullWidthWrap());
             } else {
                 for (String tag : tags) {
-                    column.addView(tagChip(context, displayTagWithRawName(tag), true, false), fullWidthWrapWithMargins(0, 0, 0, 6));
+                    View chip = tagChip(context, displayTagWithRawName(tag), true, false);
+                    if (currentTagDeleteMode) {
+                        column.addView(currentTagDeleteRow(context, chip, tag), fullWidthWrapWithMargins(0, 0, 0, 6));
+                    } else {
+                        column.addView(chip, fullWidthWrapWithMargins(0, 0, 0, 6));
+                    }
                 }
             }
 
             columns.addView(column, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+        }
+
+        private LinearLayout currentTagActions(Context context) {
+            LinearLayout actions = new LinearLayout(context);
+            actions.setOrientation(LinearLayout.HORIZONTAL);
+            actions.setGravity(Gravity.RIGHT);
+
+            Button add = actionButton(context, "手动添加", COLOR_GREEN, false);
+            add.setOnClickListener(v -> showAddCurrentTagDialog());
+            actions.addView(add, actionButtonParams(108, 0));
+
+            Button remove = actionButton(context, currentTagDeleteMode ? "完成" : "删除模式",
+                    currentTagDeleteMode ? COLOR_CYAN : COLOR_GOLD, false);
+            remove.setOnClickListener(v -> {
+                currentTagDeleteMode = !currentTagDeleteMode;
+                pendingCurrentTagDeleteConfirm = null;
+                rebuildWorkspace();
+            });
+            actions.addView(remove, actionButtonParams(108, 10));
+            return actions;
+        }
+
+        private LinearLayout currentTagDeleteRow(Context context, View chip, String tag) {
+            LinearLayout row = new LinearLayout(context);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setOnClickListener(v -> handleCurrentTagDeleteClick(row, tag));
+            chip.setOnClickListener(v -> handleCurrentTagDeleteClick(chip, tag));
+            row.addView(chip, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+            Button delete = dangerButton(context, "移除");
+            delete.setOnClickListener(v -> handleCurrentTagDeleteClick(delete, tag));
+            row.addView(delete, new LinearLayout.LayoutParams(74, ViewGroup.LayoutParams.WRAP_CONTENT));
+            return row;
         }
 
         private View buildTabs(Context context) {
@@ -886,6 +929,96 @@ public final class ModernTagEditorScreen {
             empty.setPadding(10, 14, 10, 14);
             empty.setBackground(rounded(0x33182029, 0x223A4A5B, RADIUS_CONTROL));
             return empty;
+        }
+
+        private void showAddCurrentTagDialog() {
+            UUID selected = snapshot.selectedPlayerUuid();
+            if (selected == null) {
+                setNotice("请先选择在线玩家", true);
+                return;
+            }
+
+            Context context = requireContext();
+            LinearLayout dialog = dialogPanel(context, "手动添加 Tag");
+            TextView hint = body(context, "直接添加到当前玩家身上，tag 只支持字母、数字、下划线、冒号、横线和点。");
+            hint.setTextColor(COLOR_MUTED);
+            dialog.addView(hint, fullWidthWrap());
+
+            EditText tagInput = dialogInput(context, "输入 tag");
+            dialog.addView(tagInput, fullWidthWrapWithMargins(0, SPACE, 0, 0));
+
+            LinearLayout actions = dialogActions(context);
+            Button cancel = actionButton(context, "取消", COLOR_MUTED, false);
+            cancel.setOnClickListener(v -> closeDialog());
+            actions.addView(cancel, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            Button confirm = actionButton(context, "确认", COLOR_GREEN, true);
+            confirm.setOnClickListener(v -> {
+                String tag = tagInput.getText().toString().trim();
+                if (tag.isEmpty()) {
+                    setNotice("Tag 不能为空", true);
+                    return;
+                }
+                closeDialog();
+                send(new EditorPayloads.AddPlayerTagC2S(selected, tag));
+            });
+            actions.addView(confirm, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+            dialog.addView(actions, fullWidthWrapWithMargins(0, SPACE, 0, 0));
+
+            showDialog(dialog);
+            tagInput.requestFocus();
+        }
+
+        private void handleCurrentTagDeleteClick(View anchor, String tag) {
+            UUID selected = snapshot.selectedPlayerUuid();
+            if (selected == null) {
+                setNotice("请先选择在线玩家", true);
+                return;
+            }
+
+            if (tag.equals(pendingCurrentTagDeleteConfirm)) {
+                pendingCurrentTagDeleteConfirm = null;
+                pulse(anchor);
+                send(new EditorPayloads.RemovePlayerTagC2S(selected, tag));
+                return;
+            }
+
+            pendingCurrentTagDeleteConfirm = tag;
+            anchor.postDelayed(() -> {
+                if (tag.equals(pendingCurrentTagDeleteConfirm)) {
+                    pendingCurrentTagDeleteConfirm = null;
+                    showCurrentTagDeleteConfirmDialog(tag);
+                }
+            }, 280L);
+        }
+
+        private void showCurrentTagDeleteConfirmDialog(String tag) {
+            UUID selected = snapshot.selectedPlayerUuid();
+            if (selected == null) {
+                setNotice("请先选择在线玩家", true);
+                return;
+            }
+
+            Context context = requireContext();
+            LinearLayout dialog = dialogPanel(context, "确认删除当前 Tag");
+            TextView message = body(context, "确定从当前玩家移除 " + displayTagWithRawName(tag) + " ?");
+            message.setTextColor(COLOR_GOLD);
+            dialog.addView(message, fullWidthWrap());
+
+            LinearLayout actions = dialogActions(context);
+            Button cancel = actionButton(context, "取消", COLOR_MUTED, false);
+            cancel.setOnClickListener(v -> closeDialog());
+            actions.addView(cancel, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            Button confirm = dangerButton(context, "确认");
+            confirm.setOnClickListener(v -> {
+                closeDialog();
+                send(new EditorPayloads.RemovePlayerTagC2S(selected, tag));
+            });
+            actions.addView(confirm, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+            dialog.addView(actions, fullWidthWrapWithMargins(0, SPACE, 0, 0));
+
+            showDialog(dialog);
         }
 
         private void showAddTagDialog(String categoryId) {
