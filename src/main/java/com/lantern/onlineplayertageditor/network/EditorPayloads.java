@@ -164,6 +164,22 @@ public final class EditorPayloads {
         }
     }
 
+    public record RollbackMonvhuaScoreC2S(UUID targetPlayerUuid, int value) implements CustomPayload {
+        public static final Id<RollbackMonvhuaScoreC2S> ID = new Id<>(id("rollback_monvhua_score"));
+        public static final PacketCodec<RegistryByteBuf, RollbackMonvhuaScoreC2S> CODEC = PacketCodec.ofStatic(
+                (buf, payload) -> {
+                    buf.writeUuid(payload.targetPlayerUuid);
+                    buf.writeVarInt(payload.value);
+                },
+                buf -> new RollbackMonvhuaScoreC2S(buf.readUuid(), buf.readVarInt())
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
     private static <T> PacketCodec<RegistryByteBuf, T> uuidStringCodec(
             UuidStringFactory<T> factory,
             java.util.function.Function<T, UUID> uuidGetter,

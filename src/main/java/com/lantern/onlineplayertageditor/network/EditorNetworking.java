@@ -3,6 +3,7 @@ package com.lantern.onlineplayertageditor.network;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.lantern.onlineplayertageditor.config.ConfigManager;
+import com.lantern.onlineplayertageditor.scoreboard.MonvhuaHistoryService;
 import com.lantern.onlineplayertageditor.scoreboard.ScoreboardService;
 import com.lantern.onlineplayertageditor.tag.TagService;
 import com.lantern.onlineplayertageditor.util.PermissionUtil;
@@ -32,6 +33,7 @@ public final class EditorNetworking {
         PayloadTypeRegistry.playC2S().register(EditorPayloads.RemovePresetTagC2S.ID, EditorPayloads.RemovePresetTagC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.ClearPresetTagsC2S.ID, EditorPayloads.ClearPresetTagsC2S.CODEC);
         PayloadTypeRegistry.playC2S().register(EditorPayloads.SetMonvhuaScoreC2S.ID, EditorPayloads.SetMonvhuaScoreC2S.CODEC);
+        PayloadTypeRegistry.playC2S().register(EditorPayloads.RollbackMonvhuaScoreC2S.ID, EditorPayloads.RollbackMonvhuaScoreC2S.CODEC);
     }
 
     public static void registerServerReceivers() {
@@ -58,6 +60,9 @@ public final class EditorNetworking {
 
         ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.SetMonvhuaScoreC2S.ID,
                 (payload, context) -> setMonvhuaScore(context.player(), payload.targetPlayerUuid(), payload.value()));
+
+        ServerPlayNetworking.registerGlobalReceiver(EditorPayloads.RollbackMonvhuaScoreC2S.ID,
+                (payload, context) -> rollbackMonvhuaScore(context.player(), payload.targetPlayerUuid(), payload.value()));
     }
 
     public static void openEditor(ServerPlayerEntity viewer, UUID selectedPlayerUuid) {
@@ -227,13 +232,44 @@ public final class EditorNetworking {
             return;
         }
 
+        int previousScore = ScoreboardService.getScore(viewer.getServer(), target.getGameProfile().getName());
         ScoreboardService.setScore(viewer.getServer(), target.getGameProfile().getName(), value);
+        MonvhuaHistoryService.recordScoreChange(target.getUuid(), previousScore, value, gameDay(target));
         sendNotice(viewer, "已设置 monvhua: " + value + " (" + ScoreboardService.getStageName(value) + ")", false);
+        sendSnapshot(viewer, targetUuid);
+    }
+
+    private static void rollbackMonvhuaScore(ServerPlayerEntity viewer, UUID targetUuid, int value) {
+        if (!PermissionUtil.canEditTags(viewer)) {
+            sendNotice(viewer, "你没有权限编辑计分板", true);
+            return;
+        }
+
+        ServerPlayerEntity target = getOnlineTarget(viewer, targetUuid);
+        if (target == null) {
+            sendNotice(viewer, "目标玩家已离线", true);
+            sendSnapshot(viewer, targetUuid);
+            return;
+        }
+
+        if (!ScoreboardService.objectiveExists(viewer.getServer())) {
+            sendNotice(viewer, "计分板 objective monvhua 不存在", true);
+            sendSnapshot(viewer, targetUuid);
+            return;
+        }
+
+        ScoreboardService.setScore(viewer.getServer(), target.getGameProfile().getName(), value);
+        MonvhuaHistoryService.updateObservedScore(target.getUuid(), value);
+        sendNotice(viewer, "已撤回 monvhua: " + value + " (" + ScoreboardService.getStageName(value) + ")", false);
         sendSnapshot(viewer, targetUuid);
     }
 
     private static ServerPlayerEntity getOnlineTarget(ServerPlayerEntity viewer, UUID targetUuid) {
         return viewer.getServer().getPlayerManager().getPlayer(targetUuid);
+    }
+
+    private static long gameDay(ServerPlayerEntity player) {
+        return Math.max(0L, player.getWorld().getTimeOfDay() / 24000L);
     }
 
     private static void sendNotice(ServerPlayerEntity viewer, String message, boolean error) {

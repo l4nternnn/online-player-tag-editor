@@ -38,9 +38,6 @@ public final class EditorSnapshotService {
                 ? ScoreboardService.getScore(viewer.getServer(), selected.getGameProfile().getName())
                 : 0;
         long gameDay = selected != null ? gameDay(selected) : 0L;
-        if (selected != null && objectiveExists) {
-            MonvhuaHistoryService.recordScore(selected.getUuid(), score, gameDay);
-        }
 
         List<String> selectedTags = selected != null ? TagService.getTags(selected) : List.of();
         Set<String> selectedTagSet = Set.copyOf(selectedTags);
@@ -66,6 +63,9 @@ public final class EditorSnapshotService {
         List<EditorSnapshot.ScoreLevelEntry> scoreLevels = ScoreboardService.LEVELS.stream()
                 .map(level -> new EditorSnapshot.ScoreLevelEntry(level.value(), level.displayName()))
                 .toList();
+        if (selected != null && objectiveExists) {
+            MonvhuaHistoryService.recordObservedScore(selected.getUuid(), score, gameDay);
+        }
         List<EditorSnapshot.ScoreHistoryEntry> scoreHistory = selected != null && objectiveExists
                 ? MonvhuaHistoryService.historyFor(selected.getUuid(), gameDay).stream()
                 .map(entry -> new EditorSnapshot.ScoreHistoryEntry(entry.day(), entry.value()))

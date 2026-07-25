@@ -1,13 +1,12 @@
 package com.lantern.onlineplayertageditor.scoreboard;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 public final class MonvhuaHistory {
-    public static final int DAYS_TO_KEEP = 7;
+    public static final int PREVIOUS_POINTS_TO_SHOW = 20;
+    public static final int MAX_POINTS_TO_SHOW = PREVIOUS_POINTS_TO_SHOW + 1;
+    public static final int SIGNIFICANT_CHANGE_THRESHOLD = 2;
 
     private MonvhuaHistory() {
     }
@@ -15,42 +14,45 @@ public final class MonvhuaHistory {
     public record Entry(String day, int value) {
     }
 
+    public static boolean shouldRecordChange(int previousValue, int nextValue) {
+        return Math.abs(nextValue - previousValue) > SIGNIFICANT_CHANGE_THRESHOLD;
+    }
+
     public static List<Entry> record(List<Entry> history, long gameDay, int value) {
-        Map<Long, Integer> byDay = new TreeMap<>();
-        long firstKeptDay = firstKeptDay(gameDay);
-
-        for (Entry entry : history) {
-            Long entryDay = parseGameDay(entry.day());
-            if (entryDay == null || entryDay < firstKeptDay || entryDay > gameDay) {
-                continue;
-            }
-            byDay.put(entryDay, entry.value());
-        }
-
-        byDay.put(gameDay, value);
-        return byDay.entrySet().stream()
-                .map(entry -> new Entry(String.valueOf(entry.getKey()), entry.getValue()))
-                .toList();
+        List<Entry> kept = compact(history);
+        kept.add(new Entry(String.valueOf(Math.max(0L, gameDay)), value));
+        return List.copyOf(trimToMaxPoints(kept));
     }
 
     public static List<Entry> window(List<Entry> history, long gameDay) {
-        long firstKeptDay = firstKeptDay(gameDay);
-        List<Entry> kept = new ArrayList<>();
+        return List.copyOf(compact(history));
+    }
 
+    public static Integer latestValue(List<Entry> history) {
+        List<Entry> compacted = compact(history);
+        if (compacted.isEmpty()) {
+            return null;
+        }
+        return compacted.get(compacted.size() - 1).value();
+    }
+
+    private static List<Entry> compact(List<Entry> history) {
+        List<Entry> kept = new ArrayList<>();
         for (Entry entry : history) {
             Long entryDay = parseGameDay(entry.day());
-            if (entryDay == null || entryDay < firstKeptDay || entryDay > gameDay) {
+            if (entryDay == null) {
                 continue;
             }
             kept.add(entry);
         }
-
-        kept.sort(Comparator.comparing(entry -> parseGameDay(entry.day())));
-        return kept;
+        return trimToMaxPoints(kept);
     }
 
-    private static long firstKeptDay(long gameDay) {
-        return Math.max(0L, gameDay - (DAYS_TO_KEEP - 1L));
+    private static List<Entry> trimToMaxPoints(List<Entry> entries) {
+        if (entries.size() <= MAX_POINTS_TO_SHOW) {
+            return entries;
+        }
+        return new ArrayList<>(entries.subList(entries.size() - MAX_POINTS_TO_SHOW, entries.size()));
     }
 
     private static Long parseGameDay(String day) {

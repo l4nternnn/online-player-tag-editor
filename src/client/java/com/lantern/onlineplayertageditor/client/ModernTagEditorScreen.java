@@ -5,6 +5,7 @@ import com.lantern.onlineplayertageditor.network.EditorNetworking;
 import com.lantern.onlineplayertageditor.network.EditorPayloads;
 import com.lantern.onlineplayertageditor.network.EditorSnapshot;
 import com.lantern.onlineplayertageditor.network.TagCategory;
+import com.lantern.onlineplayertageditor.scoreboard.MonvhuaHistory;
 import icyllis.modernui.animation.LayoutTransition;
 import icyllis.modernui.animation.MotionEasingUtils;
 import icyllis.modernui.animation.ObjectAnimator;
@@ -143,6 +144,7 @@ public final class ModernTagEditorScreen {
         private String noticeMessage = "";
         private boolean tagDeleteMode;
         private boolean currentTagDeleteMode;
+        private boolean monvhuaLogicDetailsVisible;
         private String pendingCurrentTagDeleteConfirm;
         private int editorSwitchVersion;
         private Integer displayedMonvhuaPercent;
@@ -784,7 +786,7 @@ public final class ModernTagEditorScreen {
         }
 
         private void rebuildScoreEditor(Context context) {
-            editorPanel.addView(sectionHeader(context, "魔女化值趋势", "最近 7 个游戏日"), fullWidthWrap());
+            editorPanel.addView(monvhuaHistoryHeader(context), fullWidthWrap());
             if (!snapshot.scoreboardObjectiveExists()) {
                 TextView warning = body(context, "objective monvhua 不存在，请先在服务端创建。");
                 warning.setTextColor(COLOR_RED);
@@ -792,6 +794,9 @@ public final class ModernTagEditorScreen {
                 warning.setPadding(10, 8, 10, 8);
                 editorPanel.addView(warning, fullWidthWrapWithMargins(0, SPACE, 0, 0));
                 return;
+            }
+            if (monvhuaLogicDetailsVisible) {
+                editorPanel.addView(monvhuaHistoryLogicHint(context), fullWidthWrapWithMargins(0, SPACE, 0, 0));
             }
             editorPanel.addView(monvhuaHistoryChart(context), fullWidthFixedHeightWithMargins(MONVHUA_CHART_HEIGHT, 0, SPACE, 0, SPACE));
             editorPanel.addView(sectionHeader(context, "阶段参考", "点击可一键切换"), fullWidthWrapWithMargins(0, 0, 0, SPACE));
@@ -809,6 +814,44 @@ public final class ModernTagEditorScreen {
             }
         }
 
+        private View monvhuaHistoryHeader(Context context) {
+            LinearLayout header = new LinearLayout(context);
+            header.setOrientation(LinearLayout.HORIZONTAL);
+            header.setGravity(Gravity.CENTER_VERTICAL);
+
+            LinearLayout copy = new LinearLayout(context);
+            copy.setOrientation(LinearLayout.VERTICAL);
+            copy.addView(section(context, "魔女化值趋势"), fullWidthWrap());
+            TextView detail = small(context, "最新记录 + 之前最多 " + MonvhuaHistory.PREVIOUS_POINTS_TO_SHOW
+                    + " 点 · 变化超过 " + MonvhuaHistory.SIGNIFICANT_CHANGE_THRESHOLD + " 分才记录 · 图表点右键可撤回");
+            detail.setTextColor(COLOR_MUTED);
+            copy.addView(detail, fullWidthWrap());
+            header.addView(copy, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+            Button toggle = actionButton(context, monvhuaLogicDetailsVisible ? "隐藏逻辑" : "逻辑显示",
+                    monvhuaLogicDetailsVisible ? COLOR_CYAN : COLOR_GOLD, false);
+            toggle.setOnClickListener(v -> {
+                monvhuaLogicDetailsVisible = !monvhuaLogicDetailsVisible;
+                rebuildEditor();
+            });
+            header.addView(toggle, actionButtonParams(108, SPACE));
+            return header;
+        }
+
+        private View monvhuaHistoryLogicHint(Context context) {
+            LinearLayout panel = panel(context, 0x44182029, 0x33425263);
+            TextView rule = body(context, "记录规则：只显示最新记录和之前最多 "
+                    + MonvhuaHistory.PREVIOUS_POINTS_TO_SHOW + " 个点；面板刷新会同步外部修改后的 > "
+                    + MonvhuaHistory.SIGNIFICANT_CHANGE_THRESHOLD + " 分突变。");
+            rule.setTextColor(COLOR_TEXT);
+            panel.addView(rule, fullWidthWrap());
+
+            TextView rollback = body(context, "撤回：在下方折线图中右键任一记录点，二次确认后回到该分值。");
+            rollback.setTextColor(COLOR_MUTED);
+            panel.addView(rollback, fullWidthWrapWithMargins(0, 2, 0, 0));
+            return panel;
+        }
+
         private EditorSnapshot.ScoreLevelEntry currentScoreLevel() {
             EditorSnapshot.ScoreLevelEntry current = null;
             for (EditorSnapshot.ScoreLevelEntry level : snapshot.scoreLevels()) {
@@ -822,7 +865,37 @@ public final class ModernTagEditorScreen {
         }
 
         private View monvhuaHistoryChart(Context context) {
-            return new MonvhuaHistoryChartPanel(context, snapshot.scoreHistory());
+            return new MonvhuaHistoryChartPanel(context, snapshot.scoreHistory(), this::showMonvhuaRollbackDialog);
+        }
+
+        private void showMonvhuaRollbackDialog(EditorSnapshot.ScoreHistoryEntry entry) {
+            UUID selected = snapshot.selectedPlayerUuid();
+            if (selected == null) {
+                setNotice("请先选择在线玩家", true);
+                return;
+            }
+
+            Context context = requireContext();
+            LinearLayout dialog = dialogPanel(context, "撤回魔女化值");
+            TextView message = body(context, "确定将 " + snapshot.selectedPlayerName()
+                    + " 的 monvhua 回到 " + entry.value() + "%（" + gameDayLabel(entry.day()) + "）?");
+            message.setTextColor(COLOR_GOLD);
+            dialog.addView(message, fullWidthWrap());
+
+            LinearLayout actions = dialogActions(context);
+            Button cancel = actionButton(context, "取消", COLOR_MUTED, false);
+            cancel.setOnClickListener(v -> closeDialog());
+            actions.addView(cancel, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            Button confirm = dangerButton(context, "撤回");
+            confirm.setOnClickListener(v -> {
+                closeDialog();
+                send(new EditorPayloads.RollbackMonvhuaScoreC2S(selected, entry.value()));
+            });
+            actions.addView(confirm, new LinearLayout.LayoutParams(92, ViewGroup.LayoutParams.WRAP_CONTENT));
+            dialog.addView(actions, fullWidthWrapWithMargins(0, SPACE, 0, 0));
+
+            showDialog(dialog);
         }
 
         private View playerButton(Context context, EditorSnapshot.PlayerEntry player, boolean selected) {
@@ -1591,6 +1664,17 @@ public final class ModernTagEditorScreen {
         return (value << 24) | (rgb & 0x00FFFFFF);
     }
 
+    private static boolean isSecondaryButtonPress(MotionEvent event) {
+        int action = event.getActionMasked();
+        return (action == MotionEvent.ACTION_BUTTON_PRESS && event.getActionButton() == MotionEvent.BUTTON_SECONDARY)
+                || (action == MotionEvent.ACTION_DOWN && (event.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0);
+    }
+
+    @FunctionalInterface
+    private interface ScoreHistoryPointHandler {
+        void handle(EditorSnapshot.ScoreHistoryEntry entry);
+    }
+
     private static final class MonvhuaHistoryChartPanel extends FrameLayout {
         private static final int VALUE_LABEL_WIDTH = 52;
         private static final int DAY_LABEL_WIDTH = 72;
@@ -1606,15 +1690,18 @@ public final class ModernTagEditorScreen {
         private final TextView emptyLabel;
         private final List<TextView> valueLabels = new ArrayList<>();
         private final List<TextView> dayLabels = new ArrayList<>();
+        private final ScoreHistoryPointHandler pointHandler;
 
-        private MonvhuaHistoryChartPanel(Context context, List<EditorSnapshot.ScoreHistoryEntry> history) {
+        private MonvhuaHistoryChartPanel(Context context, List<EditorSnapshot.ScoreHistoryEntry> history,
+                                         ScoreHistoryPointHandler pointHandler) {
             super(context);
             this.history = history == null ? List.of() : List.copyOf(history);
+            this.pointHandler = pointHandler;
             setPadding(8, 8, 8, 8);
             setMinimumHeight(CHART_HEIGHT);
             setBackground(chartBackground(0x44182029, 0x33425263, CHART_RADIUS));
 
-            chartView = new MonvhuaHistoryChartView(context, this.history);
+            chartView = new MonvhuaHistoryChartView(context, this.history, pointHandler);
             addView(chartView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
             topAxisLabel = chartLabel(context, "100", CHART_MUTED, 15);
@@ -1630,11 +1717,23 @@ public final class ModernTagEditorScreen {
                 int value = clampChartValue(entry.value());
                 TextView valueLabel = chartLabel(context, value + "%", 0xFFD8F7FF, 14);
                 TextView dayLabel = chartLabel(context, gameDayLabel(entry.day()), CHART_MUTED, 14);
+                attachPointHandler(valueLabel, entry);
+                attachPointHandler(dayLabel, entry);
                 valueLabels.add(valueLabel);
                 dayLabels.add(dayLabel);
                 addView(valueLabel, labelParams(VALUE_LABEL_WIDTH, LABEL_HEIGHT));
                 addView(dayLabel, labelParams(DAY_LABEL_WIDTH, LABEL_HEIGHT));
             }
+        }
+
+        private void attachPointHandler(View label, EditorSnapshot.ScoreHistoryEntry entry) {
+            label.setOnGenericMotionListener((view, event) -> {
+                if (pointHandler != null && isSecondaryButtonPress(event)) {
+                    pointHandler.handle(entry);
+                    return true;
+                }
+                return false;
+            });
         }
 
         @Override
@@ -1676,7 +1775,6 @@ public final class ModernTagEditorScreen {
             label.setTextSize(textSize);
             label.setGravity(Gravity.CENTER);
             label.setIncludeFontPadding(false);
-            label.setEnabled(false);
             label.setClickable(false);
             return label;
         }
@@ -1699,7 +1797,10 @@ public final class ModernTagEditorScreen {
     }
 
     private static final class MonvhuaHistoryChartView extends View {
+        private static final float POINT_HIT_RADIUS = 16.0f;
+
         private final List<EditorSnapshot.ScoreHistoryEntry> history;
+        private final ScoreHistoryPointHandler pointHandler;
         private final Paint backgroundPaint = new Paint();
         private final Paint gridPaint = new Paint();
         private final Paint axisPaint = new Paint();
@@ -1707,9 +1808,11 @@ public final class ModernTagEditorScreen {
         private final Paint pointPaint = new Paint();
         private final Paint pointCorePaint = new Paint();
 
-        private MonvhuaHistoryChartView(Context context, List<EditorSnapshot.ScoreHistoryEntry> history) {
+        private MonvhuaHistoryChartView(Context context, List<EditorSnapshot.ScoreHistoryEntry> history,
+                                        ScoreHistoryPointHandler pointHandler) {
             super(context);
             this.history = history == null ? List.of() : List.copyOf(history);
+            this.pointHandler = pointHandler;
             setWillNotDraw(false);
 
             backgroundPaint.setColor(0xFF121922);
@@ -1775,6 +1878,59 @@ public final class ModernTagEditorScreen {
                 previousX = x;
                 previousY = y;
             }
+        }
+
+        @Override
+        public boolean onGenericMotionEvent(MotionEvent event) {
+            if (isSecondaryButtonPress(event) && triggerPointRollback(event.getX(), event.getY())) {
+                return true;
+            }
+            return super.onGenericMotionEvent(event);
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            if (isSecondaryButtonPress(event) && triggerPointRollback(event.getX(), event.getY())) {
+                return true;
+            }
+            return super.onTouchEvent(event);
+        }
+
+        private boolean triggerPointRollback(float touchX, float touchY) {
+            if (pointHandler == null || history.isEmpty()) {
+                return false;
+            }
+
+            int index = pointIndexAt(touchX, touchY);
+            if (index < 0) {
+                return false;
+            }
+
+            pointHandler.handle(history.get(index));
+            return true;
+        }
+
+        private int pointIndexAt(float touchX, float touchY) {
+            int width = Math.max(1, getWidth());
+            int height = Math.max(1, getHeight());
+            ChartGeometry geometry = chartGeometry(width, height);
+            int count = history.size();
+            float bestDistance = POINT_HIT_RADIUS * POINT_HIT_RADIUS;
+            int bestIndex = -1;
+
+            for (int i = 0; i < count; i++) {
+                EditorSnapshot.ScoreHistoryEntry entry = history.get(i);
+                float pointX = dataX(geometry, i, count);
+                float pointY = dataY(geometry, clampChartValue(entry.value()));
+                float dx = touchX - pointX;
+                float dy = touchY - pointY;
+                float distance = dx * dx + dy * dy;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    bestIndex = i;
+                }
+            }
+            return bestIndex;
         }
     }
 

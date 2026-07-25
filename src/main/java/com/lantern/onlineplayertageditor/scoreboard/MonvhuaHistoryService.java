@@ -27,6 +27,52 @@ public final class MonvhuaHistoryService {
     private MonvhuaHistoryService() {
     }
 
+    public static synchronized boolean recordScoreChange(UUID playerUuid, int previousScore, int nextScore, long gameDay) {
+        updateObservedScore(playerUuid, nextScore);
+        if (!MonvhuaHistory.shouldRecordChange(previousScore, nextScore)) {
+            return false;
+        }
+        recordScore(playerUuid, nextScore, gameDay);
+        return true;
+    }
+
+    public static synchronized boolean recordObservedScore(UUID playerUuid, int score, long gameDay) {
+        if (playerUuid == null) {
+            return false;
+        }
+
+        HistoryData historyData = data();
+        String key = playerUuid.toString();
+        List<MonvhuaHistory.Entry> history = historyData.players.getOrDefault(key, List.of());
+        Integer previousObserved = historyData.observedScores.get(key);
+        historyData.observedScores.put(key, score);
+        if (previousObserved == null || !MonvhuaHistory.shouldRecordChange(previousObserved, score)) {
+            List<MonvhuaHistory.Entry> compacted = MonvhuaHistory.window(history, gameDay);
+            if (compacted.size() != history.size()) {
+                historyData.players.put(key, compacted);
+                save(historyData);
+            } else if (previousObserved == null || previousObserved != score) {
+                save(historyData);
+            }
+            return false;
+        }
+
+        List<MonvhuaHistory.Entry> updated = MonvhuaHistory.record(history, gameDay, score);
+        historyData.players.put(key, updated);
+        save(historyData);
+        return true;
+    }
+
+    public static synchronized void updateObservedScore(UUID playerUuid, int score) {
+        if (playerUuid == null) {
+            return;
+        }
+
+        HistoryData historyData = data();
+        historyData.observedScores.put(playerUuid.toString(), score);
+        save(historyData);
+    }
+
     public static synchronized void recordScore(UUID playerUuid, int score, long gameDay) {
         if (playerUuid == null) {
             return;
@@ -34,6 +80,7 @@ public final class MonvhuaHistoryService {
 
         HistoryData historyData = data();
         String key = playerUuid.toString();
+        historyData.observedScores.put(key, score);
         List<MonvhuaHistory.Entry> updated = MonvhuaHistory.record(
                 historyData.players.getOrDefault(key, List.of()),
                 gameDay,
@@ -82,6 +129,9 @@ public final class MonvhuaHistoryService {
         if (data.players == null) {
             data.players = new HashMap<>();
         }
+        if (data.observedScores == null) {
+            data.observedScores = new HashMap<>();
+        }
         return data;
     }
 
@@ -98,5 +148,6 @@ public final class MonvhuaHistoryService {
 
     private static final class HistoryData {
         private Map<String, List<MonvhuaHistory.Entry>> players = new HashMap<>();
+        private Map<String, Integer> observedScores = new HashMap<>();
     }
 }
